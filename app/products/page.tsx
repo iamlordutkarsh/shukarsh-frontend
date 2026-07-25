@@ -1,112 +1,151 @@
-export const dynamic = "force-dynamic";
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { getCategories, getProducts, type ProductSort } from "../../lib/api";
+import { FilterBar } from "../../components/catalog/FilterBar";
+import { Pagination } from "../../components/catalog/Pagination";
+import { FloatingDecor } from "../../components/motion/FloatingDecor";
+import { RevealGroup, RevealItem } from "../../components/motion/Reveal";
+import { ProductCard } from "../../components/product/ProductCard";
+import { ButtonLink } from "../../components/ui/Button";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { NoResultsArt } from "../../components/ui/KawaiiArt";
+import { ProductGridSkeleton, Skeleton } from "../../components/ui/Skeleton";
 
-import Link from "next/link";
-import { getCategories, getProducts } from "../../lib/api";
-import ProductCard from "../../components/ProductCard";
+export const metadata: Metadata = {
+  title: "Shop all",
+  description: "Browse every pastel kitchen, clothing and press-on nail find in the Shukarsh shop.",
+};
+
+const sortKeys: ProductSort[] = ["newest", "oldest", "price-asc", "price-desc", "name"];
 
 interface ProductsPageProps {
-  searchParams: Promise<{ categoryId?: string; search?: string; page?: string }>;
+  searchParams: Promise<{ categoryId?: string; search?: string; page?: string; sort?: string }>;
+}
+
+async function Catalog({
+  categoryId,
+  search,
+  page,
+  sort,
+}: {
+  categoryId?: string;
+  search?: string;
+  page: number;
+  sort: ProductSort;
+}) {
+  const [categories, result] = await Promise.all([
+    getCategories()
+      .then((data) => data.categories)
+      .catch(() => []),
+    getProducts({ categoryId, search, page, sort, limit: 12 }).catch(() => null),
+  ]);
+
+  if (!result) {
+    return (
+      <EmptyState
+        art={<NoResultsArt />}
+        title="The shop is catching its breath"
+        description="We could not reach the catalogue just now. Give it a few seconds and refresh."
+        action={<ButtonLink href="/products">Try again</ButtonLink>}
+      />
+    );
+  }
+
+  const { products, pagination } = result;
+
+  const buildPageHref = (target: number) => {
+    const params = new URLSearchParams();
+    if (categoryId) params.set("categoryId", categoryId);
+    if (search) params.set("search", search);
+    if (sort !== "newest") params.set("sort", sort);
+    if (target > 1) params.set("page", target.toString());
+    const query = params.toString();
+    return query ? `/products?${query}` : "/products";
+  };
+
+  return (
+    <>
+      <FilterBar
+        categories={categories}
+        activeCategoryId={categoryId}
+        activeSort={sort}
+        search={search}
+        total={pagination.total}
+      />
+
+      <div className="mt-8">
+        {products.length === 0 ? (
+          <EmptyState
+            art={<NoResultsArt />}
+            title="Nothing matched that"
+            description={
+              search
+                ? `We could not find anything for “${search}”. Try a shorter word or browse everything.`
+                : "This collection is being restocked. Have a peek at the rest of the shop."
+            }
+            action={<ButtonLink href="/products">Browse everything</ButtonLink>}
+          />
+        ) : (
+          <>
+            <RevealGroup className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4" stagger={0.05}>
+              {products.map((product, index) => (
+                <RevealItem key={product.id} className="h-full">
+                  <ProductCard product={product} priority={index < 4} />
+                </RevealItem>
+              ))}
+            </RevealGroup>
+
+            <Pagination page={pagination.page} pages={pagination.pages} buildHref={buildPageHref} />
+          </>
+        )}
+      </div>
+    </>
+  );
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams;
-  const categoryId = params.categoryId;
-  const search = params.search;
   const page = Math.max(1, Number(params.page) || 1);
-
-  const [{ categories }, { products, pagination }] = await Promise.all([
-    getCategories(),
-    getProducts({ categoryId, search, page, limit: 12 }),
-  ]);
-
-  const currentCategory = categories.find((c) => c.id === categoryId);
+  const sort = sortKeys.includes(params.sort as ProductSort) ? (params.sort as ProductSort) : "newest";
 
   return (
-    <div className="py-14">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-[var(--foreground)]">
-            {currentCategory ? currentCategory.name : "All Products"}
-          </h1>
-          <p className="mt-2 text-[var(--text-muted)]">
-            {currentCategory ? currentCategory.description : "Browse our full collection"}
+    <div className="relative pb-20 pt-10">
+      <FloatingDecor className="h-[28rem] opacity-70" />
+
+      <div className="section-shell relative">
+        <header className="mx-auto max-w-2xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-lavender-100/80 px-3.5 py-1.5 text-[0.6875rem] font-bold uppercase tracking-[0.18em] text-lavender-700">
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-blush-400" />
+            The whole shop
+          </span>
+          <h1 className="mt-4 text-hero text-balance">Everything, in one pastel place</h1>
+          <p className="mt-3 text-pretty text-sm leading-relaxed text-muted sm:text-base">
+            Filter by collection, sort how you like, and hover anything for a closer look.
           </p>
-        </div>
+        </header>
 
-        <div className="mt-10 flex flex-col gap-8 lg:flex-row">
-          <aside className="w-full lg:w-64">
-            <div className="rounded-xl bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">Categories</h2>
-              <ul className="mt-4 space-y-2.5">
-                <li>
-                  <Link
-                    href="/products"
-                    className={`block rounded-md px-3 py-2 text-sm ${!categoryId ? "bg-[var(--muted)] font-semibold text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"}`}
-                  >
-                    All Products
-                  </Link>
-                </li>
-                {categories.map((category) => (
-                  <li key={category.id}>
-                    <Link
-                      href={`/products?categoryId=${category.id}`}
-                      className={`block rounded-md px-3 py-2 text-sm ${categoryId === category.id ? "bg-[var(--muted)] font-semibold text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"}`}
-                    >
-                      {category.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </aside>
-
-          <div className="flex-1">
-            {search && (
-              <p className="mb-4 text-sm text-[var(--text-muted)]">
-                Showing results for <span className="font-semibold text-[var(--foreground)]">{search}</span>
-              </p>
-            )}
-
-            {products.length === 0 ? (
-              <div className="rounded-xl bg-white p-10 text-center shadow-sm">
-                <p className="text-[var(--text-muted)]">No products found.</p>
-              </div>
-            ) : (
+        <div className="mt-12">
+          <Suspense
+            key={`${params.categoryId ?? ""}-${params.search ?? ""}-${page}-${sort}`}
+            fallback={
               <>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-
-                {pagination.pages > 1 && (
-                  <div className="mt-10 flex items-center justify-center gap-2">
-                    {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((p) => {
-                      const href = `/products?${new URLSearchParams({
-                        ...(categoryId ? { categoryId } : {}),
-                        ...(search ? { search } : {}),
-                        page: p.toString(),
-                      }).toString()}`;
-
-                      return (
-                        <Link
-                          key={p}
-                          href={href}
-                          className={`flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium ${
-                            p === page
-                              ? "bg-[var(--foreground)] text-white"
-                              : "bg-white text-[var(--foreground)] ring-1 ring-[var(--border)] hover:bg-[var(--muted)]"
-                          }`}
-                        >
-                          {p}
-                        </Link>
-                      );
-                    })}
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-10 w-28 rounded-full" />
+                    ))}
                   </div>
-                )}
+                  <div className="flex justify-between">
+                    <Skeleton className="h-4 w-24 rounded-full" />
+                    <Skeleton className="h-11 w-56 rounded-full" />
+                  </div>
+                </div>
+                <ProductGridSkeleton count={8} className="mt-8" />
               </>
-            )}
-          </div>
+            }
+          >
+            <Catalog categoryId={params.categoryId} search={params.search} page={page} sort={sort} />
+          </Suspense>
         </div>
       </div>
     </div>

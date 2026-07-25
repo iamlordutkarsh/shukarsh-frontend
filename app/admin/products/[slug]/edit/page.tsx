@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import AdminLayout from "../../../../../components/AdminLayout";
 import ProductForm, { FormData } from "../../../../../components/ProductForm";
+import { ButtonLink } from "../../../../../components/ui/Button";
+import { EmptyState } from "../../../../../components/ui/EmptyState";
+import { OopsArt } from "../../../../../components/ui/KawaiiArt";
+import { Skeleton } from "../../../../../components/ui/Skeleton";
 import { useAuth } from "../../../../../lib/auth";
 import { getCategories, getProduct, updateProduct } from "../../../../../lib/api";
 import { Category, Product } from "../../../../../lib/types";
@@ -42,21 +46,35 @@ export default function EditProductPage() {
   };
 
   return (
-    <AdminLayout>
-      <h1 className="text-2xl font-bold text-[var(--foreground)]">Edit Product</h1>
+    <AdminLayout
+      title="Edit product"
+      subtitle={product ? product.name : "Tweak the details of an existing piece."}
+      actions={
+        <ButtonLink href="/admin/products" variant="secondary">
+          All products
+        </ButtonLink>
+      }
+    >
       {loading ? (
-        <p className="mt-4 text-[var(--text-muted)]">Loading...</p>
-      ) : product ? (
-        <div className="mt-6">
-          <ProductForm
-            categories={categories}
-            product={product}
-            onSubmit={handleSubmit}
-            submitLabel="Update Product"
-          />
+        <div className="max-w-3xl space-y-5" role="status" aria-label="Loading product">
+          <Skeleton className="h-64 w-full rounded-4xl" />
+          <Skeleton className="h-40 w-full rounded-4xl" />
+          <Skeleton className="h-40 w-full rounded-4xl" />
         </div>
+      ) : product ? (
+        <ProductForm
+          categories={categories}
+          product={product}
+          onSubmit={handleSubmit}
+          submitLabel="Update product"
+        />
       ) : (
-        <p className="mt-4 text-[var(--text-muted)]">Product not found.</p>
+        <EmptyState
+          art={<OopsArt />}
+          title="We could not find that product"
+          description="It may have been deleted or the link changed."
+          action={<ButtonLink href="/admin/products">Back to products</ButtonLink>}
+        />
       )}
     </AdminLayout>
   );

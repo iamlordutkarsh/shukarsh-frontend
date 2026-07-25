@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "../../../../components/AdminLayout";
 import ProductForm, { FormData } from "../../../../components/ProductForm";
+import { ButtonLink } from "../../../../components/ui/Button";
+import { Skeleton } from "../../../../components/ui/Skeleton";
 import { useAuth } from "../../../../lib/auth";
 import { createProduct, getCategories } from "../../../../lib/api";
 import { Category } from "../../../../lib/types";
@@ -13,10 +15,9 @@ export default function NewProductPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getCategories().then((data) => {
-      setCategories(data.categories);
-      setLoading(false);
-    });
+    getCategories()
+      .then((data) => setCategories(data.categories))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleSubmit = async (form: FormData) => {
@@ -36,14 +37,23 @@ export default function NewProductPage() {
   };
 
   return (
-    <AdminLayout>
-      <h1 className="text-2xl font-bold text-[var(--foreground)]">Add Product</h1>
+    <AdminLayout
+      title="Add product"
+      subtitle="A new piece for the shelf. Everything can be edited later."
+      actions={
+        <ButtonLink href="/admin/products" variant="secondary">
+          All products
+        </ButtonLink>
+      }
+    >
       {loading ? (
-        <p className="mt-4 text-[var(--text-muted)]">Loading...</p>
-      ) : (
-        <div className="mt-6">
-          <ProductForm categories={categories} onSubmit={handleSubmit} submitLabel="Create Product" />
+        <div className="max-w-3xl space-y-5" role="status" aria-label="Loading product form">
+          <Skeleton className="h-64 w-full rounded-4xl" />
+          <Skeleton className="h-40 w-full rounded-4xl" />
+          <Skeleton className="h-40 w-full rounded-4xl" />
         </div>
+      ) : (
+        <ProductForm categories={categories} onSubmit={handleSubmit} submitLabel="Create product" />
       )}
     </AdminLayout>
   );

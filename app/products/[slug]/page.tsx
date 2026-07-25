@@ -1,106 +1,188 @@
-export const dynamic = "force-dynamic";
-
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronRight, PackageCheck, RotateCcw, ShieldCheck, Truck } from "lucide-react";
+import { Suspense } from "react";
 import { getProduct, getProducts } from "../../../lib/api";
-import AddToCartButton from "../../../components/AddToCartButton";
-import ProductCard from "../../../components/ProductCard";
+import { discountPercent, formatPrice } from "../../../lib/utils";
+import { FloatingDecor } from "../../../components/motion/FloatingDecor";
+import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
+import { AddToCartButton } from "../../../components/product/AddToCartButton";
+import { ProductCard } from "../../../components/product/ProductCard";
+import { ProductGallery } from "../../../components/product/ProductGallery";
+import { Accordion } from "../../../components/ui/Accordion";
+import { Pill } from "../../../components/ui/Pill";
+import { ProductGridSkeleton } from "../../../components/ui/Skeleton";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
+  const product = await getProduct(slug)
+    .then((data) => data.product)
+    .catch(() => null);
 
-  let product;
-  try {
-    const data = await getProduct(slug);
-    product = data.product;
-  } catch {
-    notFound();
-  }
+  if (!product) return { title: "Product not found" };
 
-  const { products: related } = await getProducts({
-    categoryId: product.categoryId,
-    limit: 4,
-  });
+  return {
+    title: product.name,
+    description: product.description?.slice(0, 160) ?? `Shop ${product.name} at Shukarsh.`,
+    openGraph: {
+      title: product.name,
+      description: product.description?.slice(0, 160) ?? undefined,
+      images: product.images.length > 0 ? [product.images[0] as string] : undefined,
+    },
+  };
+}
 
-  const relatedProducts = related.filter((p) => p.id !== product.id);
-  const image = product.images[0] || "https://placehold.co/600x600?text=No+Image";
-  const comparePrice = product.comparePrice;
-  const hasDiscount = comparePrice && comparePrice > product.price;
+async function RelatedProducts({ categoryId, excludeId }: { categoryId: string; excludeId: string }) {
+  const products = await getProducts({ categoryId, limit: 5 })
+    .then((data) => data.products.filter((item) => item.id !== excludeId).slice(0, 4))
+    .catch(() => []);
+
+  if (products.length === 0) return null;
 
   return (
-    <div className="py-14">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <nav className="mb-8 flex items-center gap-2 text-sm text-[var(--text-muted)]">
-          <Link href="/products" className="hover:text-[var(--primary)]">
-            Products
+    <section className="section-shell pb-4 pt-20">
+      <Reveal>
+        <h2 className="text-section text-balance">You may also love</h2>
+      </Reveal>
+      <RevealGroup className="mt-8 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4" stagger={0.06}>
+        {products.map((product) => (
+          <RevealItem key={product.id} className="h-full">
+            <ProductCard product={product} />
+          </RevealItem>
+        ))}
+      </RevealGroup>
+    </section>
+  );
+}
+
+export default async function ProductPage({ params }: ProductPageProps) {
+  const { slug } = await params;
+  const product = await getProduct(slug)
+    .then((data) => data.product)
+    .catch(() => null);
+
+  if (!product) notFound();
+
+  const comparePrice = product.comparePrice;
+  const discount = discountPercent(product.price, comparePrice);
+  const soldOut = product.stock <= 0;
+
+  return (
+    <div className="relative pb-20 pt-8">
+      <FloatingDecor className="h-[32rem] opacity-60" />
+
+      <div className="section-shell relative">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted">
+          <Link href="/products" className="transition-colors hover:text-ink">
+            Shop
           </Link>
-          <span>/</span>
-          <Link href={`/categories/${product.category.slug}`} className="hover:text-[var(--primary)]">
+          <ChevronRight className="h-3.5 w-3.5 text-faint" strokeWidth={2.4} />
+          <Link href={`/categories/${product.category.slug}`} className="transition-colors hover:text-ink">
             {product.category.name}
           </Link>
-          <span>/</span>
-          <span className="text-[var(--foreground)]">{product.name}</span>
+          <ChevronRight className="h-3.5 w-3.5 text-faint" strokeWidth={2.4} />
+          <span className="truncate font-medium text-ink">{product.name}</span>
         </nav>
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-2xl bg-white p-4 shadow-sm">
-            <div className="aspect-square overflow-hidden rounded-xl bg-[var(--muted)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={image}
-                alt={product.name}
-                className="h-full w-full object-cover"
-              />
-            </div>
+        <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:gap-14">
+          <div className="lg:sticky lg:top-28 lg:self-start">
+            <ProductGallery
+              images={product.images}
+              name={product.name}
+              seed={product.slug}
+              badge={
+                <>
+                  {discount !== null && (
+                    <span className="rounded-full bg-gradient-to-r from-blush-400 to-peach-300 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-soft">
+                      {discount}% off
+                    </span>
+                  )}
+                  {soldOut && (
+                    <span className="rounded-full bg-ink-900/85 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white">
+                      Sold out
+                    </span>
+                  )}
+                </>
+              }
+            />
           </div>
 
-          <div className="flex flex-col">
-            <p className="text-sm font-bold uppercase tracking-wider text-[var(--primary)]">
-              {product.category.name}
-            </p>
-            <h1 className="mt-3 text-3xl font-bold leading-tight text-[var(--foreground)] sm:text-4xl">
-              {product.name}
-            </h1>
-            <div className="mt-5 flex items-center gap-3">
-              <span className="text-3xl font-bold text-[var(--foreground)]">₹{product.price.toFixed(2)}</span>
-              {comparePrice && (
-                <span className="text-lg text-[var(--text-muted)] line-through">
-                  ₹{comparePrice.toFixed(2)}
-                </span>
-              )}
-              {hasDiscount && comparePrice && (
-                <span className="rounded-full bg-[var(--primary)] px-2.5 py-1 text-xs font-bold text-white">
-                  {Math.round((1 - product.price / comparePrice) * 100)}% OFF
-                </span>
-              )}
+          <div className="space-y-7">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Pill tone="lavender">{product.category.name}</Pill>
+                {!soldOut && product.stock <= 5 && <Pill tone="peach">Only {product.stock} left</Pill>}
+                {!soldOut && product.stock > 5 && <Pill tone="mint">In stock</Pill>}
+              </div>
+
+              <h1 className="text-hero text-balance">{product.name}</h1>
+
+              <div className="flex flex-wrap items-baseline gap-3">
+                <span className="text-3xl font-bold tracking-tight text-ink">{formatPrice(product.price)}</span>
+                {comparePrice && comparePrice > product.price && (
+                  <span className="text-base text-faint line-through">{formatPrice(comparePrice)}</span>
+                )}
+                {discount !== null && (
+                  <span className="text-sm font-semibold text-blush-500">
+                    You save {formatPrice(Number(comparePrice) - product.price)}
+                  </span>
+                )}
+              </div>
+
+              <p className="text-pretty text-[0.9375rem] leading-relaxed text-muted">
+                {product.description || "A little treat, picked for the way it feels in the hand."}
+              </p>
             </div>
-            <p className="mt-6 leading-relaxed text-[var(--text-muted)]">
-              {product.description || "No description available."}
-            </p>
-            <div className="mt-8 flex items-center gap-4">
-              <AddToCartButton product={product} />
-            </div>
-            <p className="mt-4 text-sm font-medium text-[var(--text-muted)]">
-              {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
-            </p>
+
+            <AddToCartButton product={product} />
+
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {[
+                { icon: Truck, label: "Free shipping, always" },
+                { icon: ShieldCheck, label: "Secure Razorpay checkout" },
+                { icon: PackageCheck, label: "Packed with care" },
+                { icon: RotateCcw, label: "Easy 7-day support" },
+              ].map(({ icon: Icon, label }) => (
+                <li
+                  key={label}
+                  className="flex items-center gap-2.5 rounded-3xl bg-surface/70 px-4 py-3 text-[0.8125rem] font-medium text-ink-700 hairline"
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-lavender-500" strokeWidth={2.3} />
+                  {label}
+                </li>
+              ))}
+            </ul>
+
+            <Accordion
+              items={[
+                {
+                  title: "Description",
+                  content: product.description || "Details for this piece are on their way.",
+                },
+                {
+                  title: "Shipping",
+                  content:
+                    "Dispatched within 1-2 working days from India, with free shipping on every order. You will get a tracking link by email as soon as it leaves us.",
+                },
+                {
+                  title: "Care & returns",
+                  content:
+                    "Hand wash or wipe clean where relevant. Something not right? Write to hello@shukarsh.com within 7 days of delivery and we will sort it out.",
+                },
+              ]}
+            />
           </div>
         </div>
-
-        {relatedProducts.length > 0 && (
-          <div className="mt-20">
-            <h2 className="text-2xl font-bold text-[var(--foreground)]">You may also like</h2>
-            <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {relatedProducts.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      <Suspense fallback={<ProductGridSkeleton count={4} className="section-shell pt-20" />}>
+        <RelatedProducts categoryId={product.categoryId} excludeId={product.id} />
+      </Suspense>
     </div>
   );
 }

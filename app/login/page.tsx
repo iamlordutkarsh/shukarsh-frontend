@@ -1,88 +1,119 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../lib/auth";
+import { Eye, EyeOff, TriangleAlert } from "lucide-react";
+import { motion } from "motion/react";
+import { useState } from "react";
 import { login } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
+import { AuthShell, authFieldClass } from "../../components/auth/AuthShell";
+import { Button } from "../../components/ui/Button";
+import { useToast } from "../../components/ui/Toast";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login: authLogin } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
     setLoading(true);
 
     try {
       const data = await login(email, password);
       authLogin(data.token, data.user);
+      toast({ tone: "success", title: "Welcome back", description: data.user.email });
       router.push("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center py-14">
-      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-white p-8 shadow-sm">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Welcome back</h1>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-semibold text-[var(--primary)] hover:underline">
-              Create one
-            </Link>
-          </p>
-        </div>
-
+    <AuthShell
+      title="Welcome back"
+      subtitle="Sign in to pick up where you left off."
+      footer={
+        <>
+          New here?{" "}
+          <Link href="/register" className="font-semibold text-lavender-700 hover:text-lavender-600">
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <motion.p
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            role="alert"
+            className="flex items-start gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600"
+          >
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.4} />
+            {error}
+          </motion.p>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)]">
-              Email address
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-[var(--foreground)]">
-              Password
-            </label>
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-xs font-bold uppercase tracking-[0.14em] text-faint">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@email.com"
+            className={authFieldClass}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="text-xs font-bold uppercase tracking-[0.14em] text-faint">
+            Password
+          </label>
+          <div className="relative">
             <input
               id="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               required
+              autoComplete="current-password"
+              placeholder="••••••••"
+              className={`${authFieldClass} pr-12`}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full"
+              onChange={(event) => setPassword(event.target.value)}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-faint transition-colors hover:text-ink"
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" strokeWidth={2.3} />
+              ) : (
+                <Eye className="h-4 w-4" strokeWidth={2.3} />
+              )}
+            </button>
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-[var(--foreground)] py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-[var(--primary)] disabled:bg-[var(--text-muted)] disabled:shadow-none"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <Button type="submit" loading={loading} size="lg" className="w-full">
+          {loading ? "Signing in" : "Sign in"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

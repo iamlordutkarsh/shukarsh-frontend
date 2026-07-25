@@ -28,12 +28,15 @@ export async function getCategory(slug: string): Promise<{ category: Category & 
   return fetcher<{ category: Category & { products: Product[] } }>(`/categories/${slug}`, { next: { revalidate: 60 } });
 }
 
-export async function getProducts(params?: { categoryId?: string; search?: string; page?: number; limit?: number }): Promise<{ products: Product[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
+export type ProductSort = "newest" | "oldest" | "price-asc" | "price-desc" | "name";
+
+export async function getProducts(params?: { categoryId?: string; search?: string; page?: number; limit?: number; sort?: ProductSort }): Promise<{ products: Product[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
   const searchParams = new URLSearchParams();
   if (params?.categoryId) searchParams.set("categoryId", params.categoryId);
   if (params?.search) searchParams.set("search", params.search);
   if (params?.page) searchParams.set("page", params.page.toString());
   if (params?.limit) searchParams.set("limit", params.limit.toString());
+  if (params?.sort) searchParams.set("sort", params.sort);
 
   const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
   return fetcher<{ products: Product[]; pagination: { page: number; limit: number; total: number; pages: number } }>(`/products${query}`, { next: { revalidate: 60 } });
@@ -54,6 +57,13 @@ export async function register(data: { email: string; password: string; firstNam
   return fetcher<{ user: User; token: string }>("/auth/register", {
     method: "POST",
     body: JSON.stringify(data),
+  });
+}
+
+export async function subscribeToNewsletter(email: string): Promise<{ message: string }> {
+  return fetcher<{ message: string }>("/newsletter", {
+    method: "POST",
+    body: JSON.stringify({ email }),
   });
 }
 

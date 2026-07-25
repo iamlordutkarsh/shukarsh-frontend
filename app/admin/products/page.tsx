@@ -1,101 +1,285 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
-import { useAuth } from "../../../lib/auth";
+import { Button, ButtonLink } from "../../../components/ui/Button";
+import { EmptyState } from "../../../components/ui/EmptyState";
+import { NoResultsArt } from "../../../components/ui/KawaiiArt";
+import { Modal } from "../../../components/ui/Modal";
+import { Pill } from "../../../components/ui/Pill";
+import { Skeleton } from "../../../components/ui/Skeleton";
+import { useToast } from "../../../components/ui/Toast";
 import { deleteProduct, getProducts } from "../../../lib/api";
+import { useAuth } from "../../../lib/auth";
 import { Product } from "../../../lib/types";
+import { cn, formatPrice } from "../../../lib/utils";
+
+function stockClass(stock: number) {
+  if (stock === 0) return "bg-rose-50 text-rose-500";
+  if (stock <= 5) return "bg-peach-100 text-peach-400";
+  return "bg-mint-100 text-mint-400";
+}
+
+function StockBadge({ stock }: { stock: number }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.14em]",
+        stockClass(stock)
+      )}
+    >
+      {stock === 0 ? "Sold out" : `${stock} in stock`}
+    </span>
+  );
+}
+
+function Thumb({ product, className }: { product: Product; className?: string }) {
+  const image = product.images?.[0];
+  return (
+    <span className={cn("relative block shrink-0 overflow-hidden rounded-2xl bg-lavender-100", className)}>
+      {image && <Image src={image} alt="" fill sizes="64px" className="object-cover" />}
+    </span>
+  );
+}
+
+function RowActions({ product, onDelete }: { product: Product; onDelete: (product: Product) => void }) {
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <ButtonLink
+        href={`/admin/products/${product.slug}/edit`}
+        variant="secondary"
+        size="icon-sm"
+        aria-label={`Edit ${product.name}`}
+      >
+        <Pencil className="h-3.5 w-3.5" strokeWidth={2.4} />
+      </ButtonLink>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Delete ${product.name}`}
+        onClick={() => onDelete(product)}
+        className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+      >
+        <Trash2 className="h-3.5 w-3.5" strokeWidth={2.4} />
+      </Button>
+    </div>
+  );
+}
 
 export default function AdminProductsPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const data = await getProducts({ limit: 100 });
-      setProducts(data.products);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load products");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    let active = true;
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-    if (!token) return;
+    void (async () => {
+      try {
+        const data = await getProducts({ limit: 100, sort: "newest" });
+        if (active) setProducts(data.products);
+      } catch (err) {
+        if (active) {
+          toast({
+            title: "Could not load products",
+            description: err instanceof Error ? err.message : "Please try again in a moment.",
+            tone: "error",
+          });
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
 
+    return () => {
+      active = false;
+    };
+  }, [toast]);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    if (!token) {
+      toast({ title: "Session expired", description: "Sign in again to delete products.", tone: "error" });
+      return;
+    }
+
+    setDeleting(true);
     try {
-      await deleteProduct(token, id);
-      setProducts((current) => current.filter((p) => p.id !== id));
+      await deleteProduct(token, pendingDelete.id);
+      setProducts((current) => current.filter((item) => item.id !== pendingDelete.id));
+      toast({ title: "Product deleted", description: `${pendingDelete.name} is gone.`, tone: "success" });
+      setPendingDelete(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete product");
+      toast({
+        title: "Could not delete product",
+        description: err instanceof Error ? err.message : "Please try again in a moment.",
+        tone: "error",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
-    <AdminLayout>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">Products</h1>
-        <Link
-          href="/admin/products/new"
-          className="rounded-lg bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary)]"
-        >
-          Add Product
-        </Link>
-      </div>
-
-      {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-
+    <AdminLayout
+      title="Products"
+      subtitle="Every piece in the shop, with stock and pricing at a glance."
+      actions={
+        <ButtonLink href="/admin/products/new">
+          <Plus className="h-4 w-4" strokeWidth={2.6} />
+          Add product
+        </ButtonLink>
+      }
+    >
       {loading ? (
-        <p className="mt-4 text-[var(--text-muted)]">Loading...</p>
+        <div className="space-y-3" role="status" aria-label="Loading products">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={index} className="h-20 w-full rounded-3xl" />
+          ))}
+        </div>
+      ) : products.length === 0 ? (
+        <EmptyState
+          art={<NoResultsArt />}
+          title="No products yet"
+          description="Add your first piece and it will show up right here."
+          action={<ButtonLink href="/admin/products/new">Add your first product</ButtonLink>}
+        />
       ) : (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-[var(--border)]">
-            <thead className="bg-[var(--muted)]">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Stock</th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-[var(--text-muted)]">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)]">
-              {products.map((product) => (
-                <tr key={product.id}>
-                  <td className="px-6 py-4 text-sm font-medium text-[var(--foreground)]">{product.name}</td>
-                  <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{product.category.name}</td>
-                  <td className="px-6 py-4 text-sm text-[var(--foreground)]">₹{product.price.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{product.stock}</td>
-                  <td className="px-6 py-4 text-right text-sm">
+        <>
+          <div className="hidden overflow-hidden rounded-4xl bg-surface/90 shadow-soft hairline sm:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left">
+                <caption className="sr-only">Products in the catalogue</caption>
+                <thead>
+                  <tr className="bg-surface-soft">
+                    <th
+                      scope="col"
+                      className="px-5 py-4 text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-faint"
+                    >
+                      Product
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-5 py-4 text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-faint"
+                    >
+                      Category
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-5 py-4 text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-faint"
+                    >
+                      Price
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-5 py-4 text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-faint"
+                    >
+                      Stock
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-5 py-4 text-right text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-faint"
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {products.map((product) => (
+                    <tr key={product.id} className="transition-colors hover:bg-lavender-50/60">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <Thumb product={product} className="h-14 w-12" />
+                          <div className="min-w-0">
+                            <Link
+                              href={`/admin/products/${product.slug}/edit`}
+                              className="block truncate text-sm font-semibold text-ink transition-colors hover:text-lavender-700"
+                            >
+                              {product.name}
+                            </Link>
+                            <span className="mt-0.5 block truncate font-mono text-xs text-faint">{product.slug}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <Pill tone="lavender">{product.category.name}</Pill>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="text-sm font-bold text-ink">{formatPrice(product.price)}</span>
+                        {product.comparePrice && product.comparePrice > product.price && (
+                          <span className="ml-2 text-xs text-faint line-through">
+                            {formatPrice(product.comparePrice)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <StockBadge stock={product.stock} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <RowActions product={product} onDelete={setPendingDelete} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <ul className="space-y-3 sm:hidden">
+            {products.map((product) => (
+              <li key={product.id} className="rounded-4xl bg-surface/90 p-4 shadow-soft hairline">
+                <div className="flex items-start gap-3">
+                  <Thumb product={product} className="h-16 w-14" />
+                  <div className="min-w-0 flex-1">
                     <Link
                       href={`/admin/products/${product.slug}/edit`}
-                      className="mr-3 font-medium text-[var(--foreground)] hover:text-[var(--primary)]"
+                      className="block truncate text-sm font-semibold text-ink"
                     >
-                      Edit
+                      {product.name}
                     </Link>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="font-medium text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <p className="mt-1 text-sm font-bold text-ink">{formatPrice(product.price)}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Pill tone="lavender">{product.category.name}</Pill>
+                      <StockBadge stock={product.stock} />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 border-t border-line pt-3">
+                  <RowActions product={product} onDelete={setPendingDelete} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
+
+      <Modal
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        label="Confirm product deletion"
+        className="max-w-md"
+      >
+        <div className="p-7 sm:p-8">
+          <h2 className="pr-10 text-xl text-ink">Delete this product?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            {pendingDelete?.name} will be removed from the storefront. This cannot be undone.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button variant="dark" loading={deleting} onClick={confirmDelete}>
+              Delete product
+            </Button>
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>
+              Keep it
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AdminLayout>
   );
 }

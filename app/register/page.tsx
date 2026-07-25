@@ -1,117 +1,143 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../../lib/auth";
+import { Check, TriangleAlert } from "lucide-react";
+import { motion } from "motion/react";
+import { useState } from "react";
 import { register } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
+import { AuthShell, authFieldClass } from "../../components/auth/AuthShell";
+import { Button } from "../../components/ui/Button";
+import { useToast } from "../../components/ui/Toast";
+
+const MIN_PASSWORD = 8;
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    firstName: "",
-    lastName: "",
-  });
+  const [form, setForm] = useState({ email: "", password: "", firstName: "", lastName: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const strongEnough = form.password.length >= MIN_PASSWORD;
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError("");
     setLoading(true);
     try {
       const data = await register(form);
       login(data.token, data.user);
+      toast({ tone: "success", title: "Account created", description: "Welcome to Shukarsh." });
       router.push("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+    } catch (registerError) {
+      setError(registerError instanceof Error ? registerError.message : "Registration failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center py-14">
-      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-white p-8 shadow-sm">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Create your account</h1>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-[var(--primary)] hover:underline">
-              Sign in
-            </Link>
+    <AuthShell
+      title="Create your account"
+      subtitle="Save your wishlist, track orders and check out faster."
+      footer={
+        <>
+          Already with us?{" "}
+          <Link href="/login" className="font-semibold text-lavender-700 hover:text-lavender-600">
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            role="alert"
+            className="flex items-start gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600"
+          >
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.4} />
+            {error}
+          </motion.p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label htmlFor="firstName" className="text-xs font-bold uppercase tracking-[0.14em] text-faint">
+              First name
+            </label>
+            <input
+              id="firstName"
+              autoComplete="given-name"
+              placeholder="Aditi"
+              className={authFieldClass}
+              value={form.firstName}
+              onChange={(event) => setForm({ ...form, firstName: event.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="lastName" className="text-xs font-bold uppercase tracking-[0.14em] text-faint">
+              Last name
+            </label>
+            <input
+              id="lastName"
+              autoComplete="family-name"
+              placeholder="Sharma"
+              className={authFieldClass}
+              value={form.lastName}
+              onChange={(event) => setForm({ ...form, lastName: event.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-xs font-bold uppercase tracking-[0.14em] text-faint">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@email.com"
+            className={authFieldClass}
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="text-xs font-bold uppercase tracking-[0.14em] text-faint">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            required
+            minLength={MIN_PASSWORD}
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            className={authFieldClass}
+            value={form.password}
+            onChange={(event) => setForm({ ...form, password: event.target.value })}
+          />
+          <p
+            className={`flex items-center gap-1.5 text-xs ${strongEnough ? "text-mint-400" : "text-faint"}`}
+            aria-live="polite"
+          >
+            <Check className="h-3.5 w-3.5" strokeWidth={2.8} />
+            {MIN_PASSWORD} characters or more
           </p>
         </div>
 
-        {error && (
-          <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>
-        )}
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-[var(--foreground)]">
-                First name
-              </label>
-              <input
-                id="firstName"
-                type="text"
-                value={form.firstName}
-                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                className="mt-1 block w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-[var(--foreground)]">
-                Last name
-              </label>
-              <input
-                id="lastName"
-                type="text"
-                value={form.lastName}
-                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                className="mt-1 block w-full"
-              />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)]">
-              Email address
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="mt-1 block w-full"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-[var(--foreground)]">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="mt-1 block w-full"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-[var(--foreground)] py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-[var(--primary)] disabled:bg-[var(--text-muted)] disabled:shadow-none"
-          >
-            {loading ? "Creating account..." : "Create account"}
-          </button>
-        </form>
-      </div>
-    </div>
+        <Button type="submit" loading={loading} size="lg" className="w-full">
+          {loading ? "Creating account" : "Create account"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }
