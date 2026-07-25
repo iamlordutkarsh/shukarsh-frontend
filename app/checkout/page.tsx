@@ -4,14 +4,26 @@ import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "../../lib/cart";
 import { useAuth } from "../../lib/auth";
+import { createOrder } from "../../lib/api";
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    zip: "",
+    country: "US",
+    email: user?.email || "",
+  });
 
-  if (items.length === 0 && !success) {
+  if (items.length === 0) {
     return (
       <div className="py-24 text-center">
         <div className="mx-auto max-w-7xl px-4">
@@ -24,28 +36,44 @@ export default function CheckoutPage() {
     );
   }
 
-  if (success) {
-    return (
-      <div className="py-24 text-center">
-        <div className="mx-auto max-w-7xl px-4">
-          <h1 className="text-2xl font-bold text-zinc-900">Order placed!</h1>
-          <p className="mt-2 text-zinc-600">Thank you for your order. We will contact you soon.</p>
-          <Link href="/products" className="mt-6 inline-block rounded-md bg-zinc-900 px-6 py-3 text-white hover:bg-zinc-800">
-            Continue shopping
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const orderItems = items.map((item) => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        name: item.product.name,
+        price: item.product.price,
+        image: item.product.images[0],
+      }));
+
+      const data = await createOrder({
+        items: orderItems,
+        shippingAddress: {
+          line1: form.line1,
+          line2: form.line2 || undefined,
+          city: form.city,
+          state: form.state || undefined,
+          zip: form.zip,
+          country: form.country,
+        },
+        email: form.email,
+      });
+
+      if (data.sessionUrl) {
+        clearCart();
+        window.location.href = data.sessionUrl;
+      } else {
+        setError("Failed to initialize payment session");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Checkout failed");
+    } finally {
       setLoading(false);
-      setSuccess(true);
-      clearCart();
-    }, 1500);
+    }
   };
 
   return (
@@ -65,38 +93,60 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            {error && (
+              <div className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <h2 className="text-lg font-semibold text-zinc-900">Shipping Information</h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <input
                   required
                   placeholder="First name"
+                  value={form.firstName}
+                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 />
                 <input
                   required
                   placeholder="Last name"
+                  value={form.lastName}
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 />
               </div>
               <input
                 required
                 placeholder="Address"
+                value={form.line1}
+                onChange={(e) => setForm({ ...form, line1: e.target.value })}
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              />
+              <input
+                placeholder="Apartment, suite, etc. (optional)"
+                value={form.line2}
+                onChange={(e) => setForm({ ...form, line2: e.target.value })}
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
               />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <input
                   required
                   placeholder="City"
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 />
                 <input
                   placeholder="State"
+                  value={form.state}
+                  onChange={(e) => setForm({ ...form, state: e.target.value })}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 />
                 <input
                   required
                   placeholder="ZIP"
+                  value={form.zip}
+                  onChange={(e) => setForm({ ...form, zip: e.target.value })}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 />
               </div>
@@ -104,7 +154,8 @@ export default function CheckoutPage() {
                 required
                 type="email"
                 placeholder="Email"
-                defaultValue={user?.email || ""}
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
               />
               <button
@@ -112,10 +163,10 @@ export default function CheckoutPage() {
                 disabled={loading}
                 className="w-full rounded-md bg-zinc-900 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:bg-zinc-400"
               >
-                {loading ? "Processing..." : `Place Order - $${totalPrice.toFixed(2)}`}
+                {loading ? "Processing..." : `Pay $${totalPrice.toFixed(2)}`}
               </button>
               <p className="text-xs text-zinc-500">
-                Payment integration with Stripe will be added in the next step.
+                You will be redirected to Stripe to complete your payment securely.
               </p>
             </form>
           </div>

@@ -62,3 +62,14 @@ export async function getMe(token: string): Promise<{ user: User }> {
     headers: { Authorization: `Bearer ${token}` },
   });
 }
+
+export async function createOrder(payload: {
+  items: { productId: string; quantity: number; name: string; price: number; image?: string }[];
+  shippingAddress: { line1: string; line2?: string; city: string; state?: string; zip: string; country?: string };
+  email: string;
+}): Promise<{ orderId: string; sessionUrl: string | null }> {
+  return fetcher<{ orderId: string; sessionUrl: string | null }>("/orders/checkout", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
