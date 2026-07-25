@@ -58,10 +58,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <p className="text-sm font-medium text-zinc-500">{product.category.name}</p>
             <h1 className="mt-2 text-3xl font-bold text-zinc-900">{product.name}</h1>
             <div className="mt-4 flex items-center gap-3">
-              <span className="text-2xl font-bold text-zinc-900">${product.price.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-zinc-900">₹{product.price.toFixed(2)}</span>
               {product.comparePrice && (
                 <span className="text-lg text-zinc-500 line-through">
-                  ${product.comparePrice.toFixed(2)}
+                  ₹{product.comparePrice.toFixed(2)}
                 </span>
               )}
             </div>

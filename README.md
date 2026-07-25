@@ -8,6 +8,7 @@ Frontend for the Shukarsh e-commerce store.
 - React 19
 - TypeScript
 - Tailwind CSS v4
+- Razorpay Checkout.js
 
 ## Getting Started
 

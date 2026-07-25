@@ -63,12 +63,31 @@ export async function getMe(token: string): Promise<{ user: User }> {
   });
 }
 
-export async function createOrder(payload: {
+export interface RazorpayOrderResponse {
+  orderId: string;
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+}
+
+export async function createRazorpayOrder(payload: {
   items: { productId: string; quantity: number; name: string; price: number; image?: string }[];
   shippingAddress: { line1: string; line2?: string; city: string; state?: string; zip: string; country?: string };
   email: string;
-}): Promise<{ orderId: string; sessionUrl: string | null }> {
-  return fetcher<{ orderId: string; sessionUrl: string | null }>("/orders/checkout", {
+}): Promise<RazorpayOrderResponse> {
+  return fetcher<RazorpayOrderResponse>("/orders/create", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyRazorpayPayment(payload: {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}): Promise<{ message: string; orderId: string }> {
+  return fetcher<{ message: string; orderId: string }>("/orders/verify", {
     method: "POST",
     body: JSON.stringify(payload),
   });

@@ -2,13 +2,63 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "../../lib/cart";
 import { useAuth } from "../../lib/auth";
-import { createOrder } from "../../lib/api";
+import { createRazorpayOrder, verifyRazorpayPayment } from "../../lib/api";
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) => void;
+  prefill: {
+    name?: string;
+    email: string;
+    contact?: string;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: (response: { error: { description: string } }) => void) => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Razorpay checkout script"));
+    document.body.appendChild(script);
+  });
+}
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const { user } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -19,7 +69,7 @@ export default function CheckoutPage() {
     city: "",
     state: "",
     zip: "",
-    country: "US",
+    country: "IN",
     email: user?.email || "",
   });
 
@@ -42,6 +92,8 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
+      await loadRazorpayScript();
+
       const orderItems = items.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
@@ -50,7 +102,7 @@ export default function CheckoutPage() {
         image: item.product.images[0],
       }));
 
-      const data = await createOrder({
+      const data = await createRazorpayOrder({
         items: orderItems,
         shippingAddress: {
           line1: form.line1,
@@ -63,12 +115,44 @@ export default function CheckoutPage() {
         email: form.email,
       });
 
-      if (data.sessionUrl) {
-        clearCart();
-        window.location.href = data.sessionUrl;
-      } else {
-        setError("Failed to initialize payment session");
+      if (!window.Razorpay) {
+        throw new Error("Razorpay checkout failed to load");
       }
+
+      const razorpay = new window.Razorpay({
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency,
+        name: "Shukarsh",
+        description: "Order payment",
+        order_id: data.razorpayOrderId,
+        handler: async (response) => {
+          try {
+            await verifyRazorpayPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            clearCart();
+            router.push("/checkout/success");
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Payment verification failed");
+          }
+        },
+        prefill: {
+          name: `${form.firstName} ${form.lastName}`.trim(),
+          email: form.email,
+        },
+        theme: {
+          color: "#171717",
+        },
+      });
+
+      razorpay.on("payment.failed", (response) => {
+        setError(response.error.description || "Payment failed");
+      });
+
+      razorpay.open();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");
     } finally {
@@ -144,7 +228,7 @@ export default function CheckoutPage() {
                 />
                 <input
                   required
-                  placeholder="ZIP"
+                  placeholder="PIN code"
                   value={form.zip}
                   onChange={(e) => setForm({ ...form, zip: e.target.value })}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
@@ -163,10 +247,10 @@ export default function CheckoutPage() {
                 disabled={loading}
                 className="w-full rounded-md bg-zinc-900 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:bg-zinc-400"
               >
-                {loading ? "Processing..." : `Pay $${totalPrice.toFixed(2)}`}
+                {loading ? "Processing..." : `Pay ₹${totalPrice.toFixed(2)}`}
               </button>
               <p className="text-xs text-zinc-500">
-                You will be redirected to Stripe to complete your payment securely.
+                You will pay securely with Razorpay. Card, UPI, and net banking are supported.
               </p>
             </form>
           </div>
@@ -179,14 +263,14 @@ export default function CheckoutPage() {
                   <span>
                     {item.product.name} x {item.quantity}
                   </span>
-                  <span className="font-medium">${(item.product.price * item.quantity).toFixed(2)}</span>
+                  <span className="font-medium">₹{(item.product.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
             <div className="mt-6 border-t border-zinc-200 pt-4">
               <div className="flex justify-between text-lg font-bold text-zinc-900">
                 <span>Total</span>
-                <span>${totalPrice.toFixed(2)}</span>
+                <span>₹{totalPrice.toFixed(2)}</span>
               </div>
             </div>
           </div>

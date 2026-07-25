@@ -72,7 +72,7 @@ export default function CartPage() {
                         ))}
                       </select>
                       <span className="font-semibold text-zinc-900">
-                        ${(item.product.price * item.quantity).toFixed(2)}
+                        ₹{(item.product.price * item.quantity).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -85,7 +85,7 @@ export default function CartPage() {
             <h2 className="text-lg font-bold text-zinc-900">Order Summary</h2>
             <div className="mt-4 flex justify-between text-zinc-900">
               <span>Subtotal</span>
-              <span className="font-semibold">${totalPrice.toFixed(2)}</span>
+              <span className="font-semibold">₹{totalPrice.toFixed(2)}</span>
             </div>
             <p className="mt-2 text-sm text-zinc-500">Shipping and taxes calculated at checkout.</p>
             <Link
