@@ -1,4 +1,4 @@
-import { Category, Product, User } from "./types";
+import { Category, Order, Product, User } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -91,4 +91,58 @@ export async function verifyRazorpayPayment(payload: {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+function adminFetcher<T>(path: string, token: string, options?: RequestInit): Promise<T> {
+  return fetcher<T>(path, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...options?.headers,
+    },
+  });
+}
+
+export async function createProduct(token: string, data: Partial<Product>): Promise<{ product: Product }> {
+  return adminFetcher<{ product: Product }>("/products", token, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateProduct(token: string, id: string, data: Partial<Product>): Promise<{ product: Product }> {
+  return adminFetcher<{ product: Product }>(`/products/${id}`, token, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteProduct(token: string, id: string): Promise<void> {
+  await adminFetcher<{ message: string }>(`/products/${id}`, token, {
+    method: "DELETE",
+  });
+}
+
+export async function createCategory(token: string, data: Partial<Category>): Promise<{ category: Category }> {
+  return adminFetcher<{ category: Category }>("/categories", token, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateCategory(token: string, id: string, data: Partial<Category>): Promise<{ category: Category }> {
+  return adminFetcher<{ category: Category }>(`/categories/${id}`, token, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCategory(token: string, id: string): Promise<void> {
+  await adminFetcher<{ message: string }>(`/categories/${id}`, token, {
+    method: "DELETE",
+  });
+}
+
+export async function getOrders(token: string): Promise<{ orders: Order[] }> {
+  return adminFetcher<{ orders: Order[] }>("/orders", token);
 }

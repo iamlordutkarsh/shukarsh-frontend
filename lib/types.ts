@@ -29,6 +29,26 @@ export interface User {
   role: string;
 }
 
+export interface OrderItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  price: number;
+  product: Product;
+}
+
+export interface Order {
+  id: string;
+  status: string;
+  paymentStatus: string;
+  totalAmount: number;
+  shippingAddress: Record<string, string>;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  items: OrderItem[];
+  createdAt: string;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
