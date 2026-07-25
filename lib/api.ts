@@ -71,14 +71,18 @@ export interface RazorpayOrderResponse {
   keyId: string;
 }
 
-export async function createRazorpayOrder(payload: {
-  items: { productId: string; quantity: number; name: string; price: number; image?: string }[];
-  shippingAddress: { line1: string; line2?: string; city: string; state?: string; zip: string; country?: string };
-  email: string;
-}): Promise<RazorpayOrderResponse> {
+export async function createRazorpayOrder(
+  payload: {
+    items: { productId: string; quantity: number; name: string; price: number; image?: string }[];
+    shippingAddress: { line1: string; line2?: string; city: string; state?: string; zip: string; country?: string };
+    email: string;
+  },
+  token?: string
+): Promise<RazorpayOrderResponse> {
   return fetcher<RazorpayOrderResponse>("/orders/create", {
     method: "POST",
     body: JSON.stringify(payload),
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 }
 

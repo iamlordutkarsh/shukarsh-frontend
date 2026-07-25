@@ -57,7 +57,7 @@ function loadRazorpayScript(): Promise<void> {
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -102,18 +102,21 @@ export default function CheckoutPage() {
         image: item.product.images[0],
       }));
 
-      const data = await createRazorpayOrder({
-        items: orderItems,
-        shippingAddress: {
-          line1: form.line1,
-          line2: form.line2 || undefined,
-          city: form.city,
-          state: form.state || undefined,
-          zip: form.zip,
-          country: form.country,
+      const data = await createRazorpayOrder(
+        {
+          items: orderItems,
+          shippingAddress: {
+            line1: form.line1,
+            line2: form.line2 || undefined,
+            city: form.city,
+            state: form.state || undefined,
+            zip: form.zip,
+            country: form.country,
+          },
+          email: form.email,
         },
-        email: form.email,
-      });
+        token || undefined
+      );
 
       if (!window.Razorpay) {
         throw new Error("Razorpay checkout failed to load");

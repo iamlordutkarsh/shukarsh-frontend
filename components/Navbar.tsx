@@ -42,7 +42,9 @@ export default function Navbar() {
 
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="hidden text-sm text-zinc-600 sm:inline">{user.email}</span>
+              <Link href="/profile" className="hidden text-sm font-medium text-zinc-600 hover:text-zinc-900 sm:inline">
+                My Account
+              </Link>
               <button
                 onClick={logout}
                 className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
