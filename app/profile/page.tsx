@@ -35,36 +35,36 @@ export default function ProfilePage() {
   if (loading || !user) {
     return (
       <div className="py-24 text-center">
-        <p className="text-zinc-600">Loading...</p>
+        <p className="text-[var(--text-muted)]">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="py-12">
+    <div className="py-14">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-zinc-900">My Account</h1>
+        <h1 className="text-3xl font-bold text-[var(--foreground)]">My Account</h1>
 
-        <div className="mt-8 rounded-lg border border-zinc-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-zinc-900">Profile</h2>
-          <div className="mt-4 space-y-2 text-sm">
+        <div className="mt-8 rounded-2xl border border-[var(--border)] bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">Profile</h2>
+          <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
             <p>
-              <span className="font-medium text-zinc-900">Email:</span> {user.email}
+              <span className="font-medium text-[var(--text-muted)]">Email:</span>{" "}
+              <span className="text-[var(--foreground)]">{user.email}</span>
             </p>
             <p>
-              <span className="font-medium text-zinc-900">Name:</span>{" "}
-              {user.firstName || user.lastName
-                ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
-                : "Not provided"}
-            </p>
-            <p>
-              <span className="font-medium text-zinc-900">Role:</span> {user.role.toLowerCase()}
+              <span className="font-medium text-[var(--text-muted)]">Name:</span>{" "}
+              <span className="text-[var(--foreground)]">
+                {user.firstName || user.lastName
+                  ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+                  : "Not provided"}
+              </span>
             </p>
           </div>
           {user.role === "ADMIN" && (
             <Link
               href="/admin"
-              className="mt-4 inline-block rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+              className="mt-5 inline-block rounded-lg bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary)]"
             >
               Go to Admin
             </Link>
@@ -72,31 +72,39 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-zinc-900">Order History</h2>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">Order History</h2>
           {ordersLoading ? (
-            <p className="mt-4 text-zinc-600">Loading orders...</p>
+            <p className="mt-4 text-[var(--text-muted)]">Loading orders...</p>
           ) : orders.length === 0 ? (
-            <p className="mt-4 text-zinc-600">You have not placed any orders yet.</p>
+            <div className="mt-4 rounded-2xl bg-white p-8 text-center shadow-sm">
+              <p className="text-[var(--text-muted)]">You have not placed any orders yet.</p>
+              <Link
+                href="/products"
+                className="mt-4 inline-block text-sm font-semibold text-[var(--primary)] hover:underline"
+              >
+                Start shopping
+              </Link>
+            </div>
           ) : (
-            <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-              <table className="min-w-full divide-y divide-zinc-200">
-                <thead className="bg-zinc-50">
+            <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
+              <table className="min-w-full divide-y divide-[var(--border)]">
+                <thead className="bg-[var(--muted)]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Order</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Payment</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Order</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Payment</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200">
+                <tbody className="divide-y divide-[var(--border)]">
                   {orders.map((order) => (
                     <tr key={order.id}>
-                      <td className="px-6 py-4 text-sm font-mono text-zinc-900">{order.id.slice(0, 8)}</td>
-                      <td className="px-6 py-4 text-sm text-zinc-900">{order.status}</td>
-                      <td className="px-6 py-4 text-sm text-zinc-900">{order.paymentStatus}</td>
-                      <td className="px-6 py-4 text-sm text-zinc-900">₹{Number(order.totalAmount).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-zinc-600">
+                      <td className="px-6 py-4 text-sm font-mono text-[var(--foreground)]">{order.id.slice(0, 8)}</td>
+                      <td className="px-6 py-4 text-sm text-[var(--foreground)]">{order.status}</td>
+                      <td className="px-6 py-4 text-sm text-[var(--foreground)]">{order.paymentStatus}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-[var(--foreground)]">₹{Number(order.totalAmount).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-[var(--text-muted)]">
                         {new Date(order.createdAt).toLocaleDateString()}
                       </td>
                     </tr>

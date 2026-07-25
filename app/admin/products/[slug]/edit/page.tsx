@@ -43,9 +43,9 @@ export default function EditProductPage() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-zinc-900">Edit Product</h1>
+      <h1 className="text-2xl font-bold text-[var(--foreground)]">Edit Product</h1>
       {loading ? (
-        <p className="mt-4 text-zinc-600">Loading...</p>
+        <p className="mt-4 text-[var(--text-muted)]">Loading...</p>
       ) : product ? (
         <div className="mt-6">
           <ProductForm
@@ -56,7 +56,7 @@ export default function EditProductPage() {
           />
         </div>
       ) : (
-        <p className="mt-4 text-zinc-600">Product not found.</p>
+        <p className="mt-4 text-[var(--text-muted)]">Product not found.</p>
       )}
     </AdminLayout>
   );

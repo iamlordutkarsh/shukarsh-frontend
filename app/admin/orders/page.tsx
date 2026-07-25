@@ -23,34 +23,36 @@ export default function AdminOrdersPage() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-zinc-900">Orders</h1>
+      <h1 className="text-2xl font-bold text-[var(--foreground)]">Orders</h1>
 
-      {error && <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       {loading ? (
-        <p className="mt-4 text-zinc-600">Loading...</p>
+        <p className="mt-4 text-[var(--text-muted)]">Loading...</p>
       ) : orders.length === 0 ? (
-        <p className="mt-4 text-zinc-600">No orders yet.</p>
+        <div className="mt-6 rounded-2xl bg-white p-8 text-center shadow-sm">
+          <p className="text-[var(--text-muted)]">No orders yet.</p>
+        </div>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          <table className="min-w-full divide-y divide-zinc-200">
-            <thead className="bg-zinc-50">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-[var(--border)]">
+            <thead className="bg-[var(--muted)]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Payment</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Order ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Payment</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200">
+            <tbody className="divide-y divide-[var(--border)]">
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td className="px-6 py-4 text-sm font-mono text-zinc-900">{order.id.slice(0, 8)}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-900">{order.status}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-900">{order.paymentStatus}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-900">₹{Number(order.totalAmount).toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-600">
+                  <td className="px-6 py-4 text-sm font-mono text-[var(--foreground)]">{order.id.slice(0, 8)}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--foreground)]">{order.status}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--foreground)]">{order.paymentStatus}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-[var(--foreground)]">₹{Number(order.totalAmount).toFixed(2)}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--text-muted)]">
                     {new Date(order.createdAt).toLocaleDateString()}
                   </td>
                 </tr>

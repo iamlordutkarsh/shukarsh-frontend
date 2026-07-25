@@ -22,7 +22,6 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const data = await register(form);
       login(data.token, data.user);
@@ -35,24 +34,26 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center py-12">
-      <div className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-8">
-        <h1 className="text-2xl font-bold text-zinc-900">Create your account</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-zinc-900 hover:underline">
-            Sign in
-          </Link>
-        </p>
+    <div className="flex flex-1 items-center justify-center py-14">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-white p-8 shadow-sm">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Create your account</h1>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-[var(--primary)] hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
 
         {error && (
-          <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-zinc-900">
+              <label htmlFor="firstName" className="block text-sm font-medium text-[var(--foreground)]">
                 First name
               </label>
               <input
@@ -60,11 +61,11 @@ export default function RegisterPage() {
                 type="text"
                 value={form.firstName}
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                className="mt-1 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+                className="mt-1 block w-full"
               />
             </div>
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-zinc-900">
+              <label htmlFor="lastName" className="block text-sm font-medium text-[var(--foreground)]">
                 Last name
               </label>
               <input
@@ -72,12 +73,12 @@ export default function RegisterPage() {
                 type="text"
                 value={form.lastName}
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                className="mt-1 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+                className="mt-1 block w-full"
               />
             </div>
           </div>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-zinc-900">
+            <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)]">
               Email address
             </label>
             <input
@@ -86,11 +87,11 @@ export default function RegisterPage() {
               required
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              className="mt-1 block w-full"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-zinc-900">
+            <label htmlFor="password" className="block text-sm font-medium text-[var(--foreground)]">
               Password
             </label>
             <input
@@ -99,13 +100,13 @@ export default function RegisterPage() {
               required
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              className="mt-1 block w-full"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-zinc-900 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:bg-zinc-400"
+            className="w-full rounded-lg bg-[var(--foreground)] py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-[var(--primary)] disabled:bg-[var(--text-muted)] disabled:shadow-none"
           >
             {loading ? "Creating account..." : "Create account"}
           </button>

@@ -31,23 +31,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center py-12">
-      <div className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-8">
-        <h1 className="text-2xl font-bold text-zinc-900">Sign in to your account</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Or{" "}
-          <Link href="/register" className="font-semibold text-zinc-900 hover:underline">
-            create a new account
-          </Link>
-        </p>
+    <div className="flex flex-1 items-center justify-center py-14">
+      <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-white p-8 shadow-sm">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Welcome back</h1>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-semibold text-[var(--primary)] hover:underline">
+              Create one
+            </Link>
+          </p>
+        </div>
 
         {error && (
-          <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-zinc-900">
+            <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)]">
               Email address
             </label>
             <input
@@ -56,11 +58,11 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              className="mt-1 block w-full"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-zinc-900">
+            <label htmlFor="password" className="block text-sm font-medium text-[var(--foreground)]">
               Password
             </label>
             <input
@@ -69,13 +71,13 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              className="mt-1 block w-full"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-zinc-900 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:bg-zinc-400"
+            className="w-full rounded-lg bg-[var(--foreground)] py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-[var(--primary)] disabled:bg-[var(--text-muted)] disabled:shadow-none"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

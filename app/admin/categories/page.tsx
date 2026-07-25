@@ -77,43 +77,43 @@ export default function AdminCategoriesPage() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-zinc-900">Categories</h1>
+      <h1 className="text-2xl font-bold text-[var(--foreground)]">Categories</h1>
 
-      {error && <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-      <form onSubmit={handleSubmit} className="mt-6 max-w-xl space-y-4 rounded-lg border border-zinc-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-zinc-900">{editing ? "Edit Category" : "Add Category"}</h2>
+      <form onSubmit={handleSubmit} className="mt-6 max-w-xl space-y-4 rounded-2xl border border-[var(--border)] bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-[var(--foreground)]">{editing ? "Edit Category" : "Add Category"}</h2>
         <div>
-          <label className="block text-sm font-medium text-zinc-900">Name</label>
+          <label className="block text-sm font-medium text-[var(--foreground)]">Name</label>
           <input
             required
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 w-full"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-zinc-900">Slug</label>
+          <label className="block text-sm font-medium text-[var(--foreground)]">Slug</label>
           <input
             required
             value={form.slug}
             onChange={(e) => setForm({ ...form, slug: e.target.value })}
-            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 w-full"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-zinc-900">Description</label>
+          <label className="block text-sm font-medium text-[var(--foreground)]">Description</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={3}
-            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+            className="mt-1 w-full"
           />
         </div>
         <div className="flex gap-3">
           <button
             type="submit"
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            className="rounded-lg bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary)]"
           >
             {editing ? "Update" : "Create"}
           </button>
@@ -121,7 +121,7 @@ export default function AdminCategoriesPage() {
             <button
               type="button"
               onClick={handleCancel}
-              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
+              className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--muted)]"
             >
               Cancel
             </button>
@@ -130,26 +130,26 @@ export default function AdminCategoriesPage() {
       </form>
 
       {loading ? (
-        <p className="mt-6 text-zinc-600">Loading...</p>
+        <p className="mt-6 text-[var(--text-muted)]">Loading...</p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          <table className="min-w-full divide-y divide-zinc-200">
-            <thead className="bg-zinc-50">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-[var(--border)]">
+            <thead className="bg-[var(--muted)]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Slug</th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-zinc-500">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Slug</th>
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-[var(--text-muted)]">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200">
+            <tbody className="divide-y divide-[var(--border)]">
               {categories.map((category) => (
                 <tr key={category.id}>
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-900">{category.name}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-600">{category.slug}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-[var(--foreground)]">{category.name}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{category.slug}</td>
                   <td className="px-6 py-4 text-right text-sm">
                     <button
                       onClick={() => handleEdit(category)}
-                      className="mr-3 font-medium text-zinc-900 hover:underline"
+                      className="mr-3 font-medium text-[var(--foreground)] hover:text-[var(--primary)]"
                     >
                       Edit
                     </button>

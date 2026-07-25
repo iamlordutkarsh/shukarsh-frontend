@@ -22,46 +22,55 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const currentCategory = categories.find((c) => c.id === categoryId);
 
   return (
-    <div className="py-12">
+    <div className="py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-zinc-900">
-          {currentCategory ? currentCategory.name : "All Products"}
-        </h1>
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-[var(--foreground)]">
+            {currentCategory ? currentCategory.name : "All Products"}
+          </h1>
+          <p className="mt-2 text-[var(--text-muted)]">
+            {currentCategory ? currentCategory.description : "Browse our full collection"}
+          </p>
+        </div>
 
-        <div className="mt-8 flex flex-col gap-6 lg:flex-row">
+        <div className="mt-10 flex flex-col gap-8 lg:flex-row">
           <aside className="w-full lg:w-64">
-            <h2 className="font-semibold text-zinc-900">Categories</h2>
-            <ul className="mt-4 space-y-2">
-              <li>
-                <Link
-                  href="/products"
-                  className={`text-sm ${!categoryId ? "font-semibold text-zinc-900" : "text-zinc-600 hover:text-zinc-900"}`}
-                >
-                  All Products
-                </Link>
-              </li>
-              {categories.map((category) => (
-                <li key={category.id}>
+            <div className="rounded-xl bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">Categories</h2>
+              <ul className="mt-4 space-y-2.5">
+                <li>
                   <Link
-                    href={`/products?categoryId=${category.id}`}
-                    className={`text-sm ${categoryId === category.id ? "font-semibold text-zinc-900" : "text-zinc-600 hover:text-zinc-900"}`}
+                    href="/products"
+                    className={`block rounded-md px-3 py-2 text-sm ${!categoryId ? "bg-[var(--muted)] font-semibold text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"}`}
                   >
-                    {category.name}
+                    All Products
                   </Link>
                 </li>
-              ))}
-            </ul>
+                {categories.map((category) => (
+                  <li key={category.id}>
+                    <Link
+                      href={`/products?categoryId=${category.id}`}
+                      className={`block rounded-md px-3 py-2 text-sm ${categoryId === category.id ? "bg-[var(--muted)] font-semibold text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"}`}
+                    >
+                      {category.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </aside>
 
           <div className="flex-1">
             {search && (
-              <p className="mb-4 text-sm text-zinc-600">
-                Showing results for <span className="font-semibold">{search}</span>
+              <p className="mb-4 text-sm text-[var(--text-muted)]">
+                Showing results for <span className="font-semibold text-[var(--foreground)]">{search}</span>
               </p>
             )}
 
             {products.length === 0 ? (
-              <p className="text-zinc-600">No products found.</p>
+              <div className="rounded-xl bg-white p-10 text-center shadow-sm">
+                <p className="text-[var(--text-muted)]">No products found.</p>
+              </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -71,7 +80,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 </div>
 
                 {pagination.pages > 1 && (
-                  <div className="mt-8 flex items-center justify-center gap-2">
+                  <div className="mt-10 flex items-center justify-center gap-2">
                     {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((p) => {
                       const href = `/products?${new URLSearchParams({
                         ...(categoryId ? { categoryId } : {}),
@@ -83,10 +92,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                         <Link
                           key={p}
                           href={href}
-                          className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium ${
+                          className={`flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium ${
                             p === page
-                              ? "bg-zinc-900 text-white"
-                              : "bg-white text-zinc-900 ring-1 ring-zinc-200 hover:bg-zinc-50"
+                              ? "bg-[var(--foreground)] text-white"
+                              : "bg-white text-[var(--foreground)] ring-1 ring-[var(--border)] hover:bg-[var(--muted)]"
                           }`}
                         >
                           {p}

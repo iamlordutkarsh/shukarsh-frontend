@@ -37,9 +37,9 @@ export default function NewProductPage() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-zinc-900">Add Product</h1>
+      <h1 className="text-2xl font-bold text-[var(--foreground)]">Add Product</h1>
       {loading ? (
-        <p className="mt-4 text-zinc-600">Loading...</p>
+        <p className="mt-4 text-[var(--text-muted)]">Loading...</p>
       ) : (
         <div className="mt-6">
           <ProductForm categories={categories} onSubmit={handleSubmit} submitLabel="Create Product" />

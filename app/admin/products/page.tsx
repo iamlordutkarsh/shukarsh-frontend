@@ -44,42 +44,42 @@ export default function AdminProductsPage() {
   return (
     <AdminLayout>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-900">Products</h1>
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">Products</h1>
         <Link
           href="/admin/products/new"
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          className="rounded-lg bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary)]"
         >
           Add Product
         </Link>
       </div>
 
-      {error && <div className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       {loading ? (
-        <p className="mt-4 text-zinc-600">Loading...</p>
+        <p className="mt-4 text-[var(--text-muted)]">Loading...</p>
       ) : (
-        <div className="mt-6 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          <table className="min-w-full divide-y divide-zinc-200">
-            <thead className="bg-zinc-50">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-[var(--border)]">
+            <thead className="bg-[var(--muted)]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">Stock</th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-zinc-500">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Price</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-[var(--text-muted)]">Stock</th>
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-[var(--text-muted)]">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200">
+            <tbody className="divide-y divide-[var(--border)]">
               {products.map((product) => (
                 <tr key={product.id}>
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-900">{product.name}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-600">{product.category.name}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-900">₹{product.price.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-600">{product.stock}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-[var(--foreground)]">{product.name}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{product.category.name}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--foreground)]">₹{product.price.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-sm text-[var(--text-muted)]">{product.stock}</td>
                   <td className="px-6 py-4 text-right text-sm">
                     <Link
                       href={`/admin/products/${product.slug}/edit`}
-                      className="mr-3 font-medium text-zinc-900 hover:underline"
+                      className="mr-3 font-medium text-[var(--foreground)] hover:text-[var(--primary)]"
                     >
                       Edit
                     </Link>
