@@ -42,6 +42,8 @@ export interface Order {
   status: string;
   paymentStatus: string;
   totalAmount: number;
+  customerEmail?: string | null;
+  customerName?: string | null;
   shippingAddress: Record<string, string>;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;

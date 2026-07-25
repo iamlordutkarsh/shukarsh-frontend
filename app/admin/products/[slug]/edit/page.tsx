@@ -39,7 +39,7 @@ export default function EditProductPage() {
       price: Number(form.price),
       comparePrice: form.comparePrice ? Number(form.comparePrice) : undefined,
       stock: Number(form.stock),
-      images: form.images.split("\n").map((url) => url.trim()).filter(Boolean),
+      images: form.images,
       categoryId: form.categoryId,
       isActive: form.isActive,
     });

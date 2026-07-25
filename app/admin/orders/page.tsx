@@ -32,7 +32,7 @@ const paymentClasses: Record<string, string> = {
 };
 
 function customerOf(order: AdminOrder) {
-  return order.email ?? order.user?.email ?? order.shippingAddress?.email ?? null;
+  return order.customerEmail ?? order.email ?? order.user?.email ?? order.shippingAddress?.email ?? null;
 }
 
 function shippingLineOf(order: AdminOrder) {
@@ -120,8 +120,11 @@ export default function AdminOrdersPage() {
                   <div className="min-w-0 flex-1">
                     <span className="block font-mono text-xs font-semibold text-ink">#{order.id.slice(0, 8)}</span>
                     <span className="mt-1 block truncate text-sm font-semibold text-ink">
-                      {customer ?? "Guest checkout"}
+                      {order.customerName ?? customer ?? "Guest checkout"}
                     </span>
+                    {order.customerName && customer && (
+                      <span className="mt-0.5 block truncate text-xs text-muted">{customer}</span>
+                    )}
                     <span className="mt-0.5 block text-xs text-muted">
                       {new Date(order.createdAt).toLocaleDateString("en-IN", {
                         day: "numeric",

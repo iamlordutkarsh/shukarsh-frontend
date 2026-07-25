@@ -160,3 +160,54 @@ export async function deleteCategory(token: string, id: string): Promise<void> {
 export async function getOrders(token: string): Promise<{ orders: Order[] }> {
   return adminFetcher<{ orders: Order[] }>("/orders", token);
 }
+
+export async function uploadProductImages(token: string, files: File[]): Promise<{ urls: string[] }> {
+  const body = new FormData();
+  files.forEach((file) => body.append("files", file));
+
+  const response = await fetch(`${API_URL}/api/uploads`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(error.error || "Upload failed");
+  }
+
+  return response.json() as Promise<{ urls: string[] }>;
+}
+
+export async function deleteProductImage(token: string, url: string): Promise<{ removed: boolean }> {
+  return adminFetcher<{ removed: boolean }>("/uploads", token, {
+    method: "DELETE",
+    body: JSON.stringify({ url }),
+  });
+}
+
+export async function getUploadConfig(token: string): Promise<{ enabled: boolean; maxFileSize: number; maxFiles: number }> {
+  return adminFetcher<{ enabled: boolean; maxFileSize: number; maxFiles: number }>("/uploads/config", token);
+}
+
+export async function getWishlist(token: string): Promise<{ products: Product[] }> {
+  return adminFetcher<{ products: Product[] }>("/wishlist", token, { cache: "no-store" });
+}
+
+export async function addToWishlist(token: string, productId: string): Promise<{ products: Product[] }> {
+  return adminFetcher<{ products: Product[] }>("/wishlist", token, {
+    method: "POST",
+    body: JSON.stringify({ productId }),
+  });
+}
+
+export async function removeFromWishlist(token: string, productId: string): Promise<{ products: Product[] }> {
+  return adminFetcher<{ products: Product[] }>(`/wishlist/${productId}`, token, { method: "DELETE" });
+}
+
+export async function mergeWishlist(token: string, productIds: string[]): Promise<{ products: Product[] }> {
+  return adminFetcher<{ products: Product[] }>("/wishlist/merge", token, {
+    method: "POST",
+    body: JSON.stringify({ productIds }),
+  });
+}

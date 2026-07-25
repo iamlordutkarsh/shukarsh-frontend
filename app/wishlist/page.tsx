@@ -12,7 +12,7 @@ import { EmptyHeartArt } from "../../components/ui/KawaiiArt";
 import { ProductGridSkeleton } from "../../components/ui/Skeleton";
 
 export default function WishlistPage() {
-  const { items, clear, ready, count } = useWishlist();
+  const { items, clear, ready, count, synced } = useWishlist();
 
   return (
     <div className="relative pb-20 pt-10">
@@ -24,8 +24,10 @@ export default function WishlistPage() {
             <h1 className="text-hero text-balance">Saved for later</h1>
             <p className="mt-2 text-sm text-muted">
               {count > 0
-                ? `${count} ${count === 1 ? "piece" : "pieces"} kept on this device.`
-                : "Tap the heart on anything you love."}
+                ? `${count} ${count === 1 ? "piece" : "pieces"} ${synced ? "saved to your account." : "kept on this device."}`
+                : synced
+                  ? "Tap the heart on anything you love and it follows you across devices."
+                  : "Tap the heart on anything you love."}
             </p>
           </div>
           {count > 0 && (

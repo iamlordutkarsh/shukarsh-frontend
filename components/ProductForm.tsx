@@ -7,6 +7,7 @@ import { formatPrice } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
+import { ImageUploader } from "./admin/ImageUploader";
 
 interface ProductFormProps {
   categories: Category[];
@@ -22,16 +23,9 @@ export interface FormData {
   price: string;
   comparePrice: string;
   stock: string;
-  images: string;
+  images: string[];
   categoryId: string;
   isActive: boolean;
-}
-
-function parseImageUrls(value: string) {
-  return value
-    .split("\n")
-    .map((url) => url.trim())
-    .filter(Boolean);
 }
 
 export default function ProductForm({ categories, product, onSubmit, submitLabel }: ProductFormProps) {
@@ -46,14 +40,13 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     price: product?.price ? String(product.price) : "",
     comparePrice: product?.comparePrice ? String(product.comparePrice) : "",
     stock: product?.stock ? String(product.stock) : "",
-    images: product?.images?.join("\n") || "",
+    images: product?.images ?? [],
     categoryId: product?.categoryId || "",
     isActive: product?.isActive ?? true,
   });
 
   const priceNumber = Number(form.price);
   const pricePreview = form.price.trim() && Number.isFinite(priceNumber) ? formatPrice(priceNumber) : null;
-  const imageCount = parseImageUrls(form.images).length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,21 +185,8 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
         </div>
       </FormCard>
 
-      <FormCard title="Media" description="One image URL per line. The first one becomes the cover.">
-        <FormField
-          label="Image URLs"
-          htmlFor={`${uid}-images`}
-          hint={imageCount > 0 ? `${imageCount} image${imageCount === 1 ? "" : "s"} ready` : "No images yet."}
-        >
-          <textarea
-            id={`${uid}-images`}
-            value={form.images}
-            onChange={(e) => setForm({ ...form, images: e.target.value })}
-            rows={4}
-            placeholder={"https://images.unsplash.com/photo-1\nhttps://images.unsplash.com/photo-2"}
-            className={`${textareaClass} font-mono text-xs`}
-          />
-        </FormField>
+      <FormCard title="Media" description="Upload photos or paste links. The first image becomes the cover.">
+        <ImageUploader value={form.images} onChange={(images) => setForm({ ...form, images })} />
       </FormCard>
 
       <div className="flex flex-wrap items-center gap-3">
