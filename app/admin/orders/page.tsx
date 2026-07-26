@@ -84,8 +84,45 @@ export default function AdminOrdersPage() {
   const replaceShipment = (orderId: string, shipment: Shipment) =>
     setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, shipment } : order)));
 
-  const handleStatus = async (id: string, status: string) => {
+  /**
+   * Cancelling or reopening a paid order moves real stock, and cancelling one
+   * that is already on its way leaves the courier holding a live AWB. Both are
+   * a single click on a dropdown, so say what will happen first.
+   */
+  const confirmStatus = (order: AdminOrder, next: string) => {
+    if (order.paymentStatus !== "PAID") return true;
+
+    const closing = next === "CANCELLED" || next === "RETURNED";
+    const reopening = !closing && order.status !== next && ["CANCELLED", "RETURNED"].includes(order.status);
+    const units = order.items.reduce((total, item) => total + item.quantity, 0);
+
+    if (closing) {
+      const awbWarning = order.shipment?.awb
+        ? `\n\nThis order already has AWB ${order.shipment.awb}. Cancel the shipment in the shipping panel too, or the courier will still collect it.`
+        : "";
+      return window.confirm(
+        `Mark order #${order.id.slice(0, 8)} as ${next.toLowerCase()}?\n\n${units} unit${
+          units === 1 ? "" : "s"
+        } will go back into stock.${awbWarning}`
+      );
+    }
+
+    if (reopening) {
+      return window.confirm(
+        `Reopen order #${order.id.slice(0, 8)} as ${next.toLowerCase()}?\n\n${units} unit${
+          units === 1 ? "" : "s"
+        } will be taken out of stock again.`
+      );
+    }
+
+    return true;
+  };
+
+  const handleStatus = async (order: AdminOrder, status: string) => {
     if (!token) return;
+    if (!confirmStatus(order, status)) return;
+
+    const id = order.id;
     setSavingId(id);
 
     try {
@@ -205,7 +242,7 @@ export default function AdminOrdersPage() {
                       aria-label={`Status for order ${order.id.slice(0, 8)}`}
                       value={order.status}
                       disabled={savingId === order.id}
-                      onChange={(event) => handleStatus(order.id, event.target.value)}
+                      onChange={(event) => handleStatus(order, event.target.value)}
                       className={cn(
                         "h-9 cursor-pointer rounded-full border-0 px-3 text-[0.6875rem] font-bold uppercase tracking-[0.14em] outline-none transition-opacity focus:ring-2 focus:ring-lavender-400 disabled:opacity-50",
                         statusClasses[order.status] ?? "bg-lavender-100 text-lavender-700"
