@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { shippingFor } from "../../lib/constants";
 import { useCart } from "../../lib/cart";
 import { easeSoft } from "../../lib/motion";
 import { useUI } from "../../lib/ui-store";
@@ -20,8 +19,6 @@ export function CartDrawer() {
   const { isOpen, close } = useUI();
   const { items, totalItems, totalPrice, updateQuantity, removeFromCart } = useCart();
   const open = isOpen("cart");
-
-  const shipping = shippingFor(totalPrice);
 
   return (
     <Drawer
@@ -39,13 +36,11 @@ export function CartDrawer() {
               </div>
               <div className="flex justify-between text-muted">
                 <dt>Shipping</dt>
-                <dd className={shipping === 0 ? "font-semibold text-mint-500" : "font-semibold text-ink"}>
-                  {shipping === 0 ? "Free" : formatPrice(shipping)}
-                </dd>
+                <dd className="font-semibold text-faint">Calculated at checkout</dd>
               </div>
               <div className="flex justify-between border-t border-line pt-2 text-base">
                 <dt className="font-display text-ink">Total</dt>
-                <dd className="font-bold text-ink">{formatPrice(totalPrice + shipping)}</dd>
+                <dd className="font-bold text-ink">{formatPrice(totalPrice)}</dd>
               </div>
             </dl>
 
@@ -83,7 +78,7 @@ export function CartDrawer() {
         <div className="space-y-5">
           <p className="flex items-center gap-2 rounded-3xl bg-lavender-50/80 px-4 py-3 text-xs font-semibold text-lavender-700">
             <Truck className="h-4 w-4 shrink-0" strokeWidth={2.3} />
-            Free shipping on every order, always.
+            Enter your PIN code at checkout for live courier rates.
           </p>
 
           <ul className="space-y-3">

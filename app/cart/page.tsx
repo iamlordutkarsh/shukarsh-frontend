@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowRight, ShieldCheck, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCart } from "../../lib/cart";
-import { shippingFor } from "../../lib/constants";
 import { easeSoft } from "../../lib/motion";
 import { formatPrice } from "../../lib/utils";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
@@ -18,7 +17,6 @@ import { PastelTile } from "../../components/ui/PastelTile";
 
 export default function CartPage() {
   const { items, updateQuantity, removeFromCart, totalPrice, totalItems } = useCart();
-  const shipping = shippingFor(totalPrice);
 
   return (
     <div className="relative pb-20 pt-10">
@@ -135,11 +133,11 @@ export default function CartPage() {
                   </div>
                   <div className="flex justify-between text-muted">
                     <dt>Shipping</dt>
-                    <dd className="font-semibold text-mint-400">Free</dd>
+                    <dd className="font-semibold text-faint">Calculated at checkout</dd>
                   </div>
                   <div className="flex items-baseline justify-between border-t border-line pt-3">
                     <dt className="font-display text-lg text-ink">Total</dt>
-                    <dd className="text-xl font-bold text-ink">{formatPrice(totalPrice + shipping)}</dd>
+                    <dd className="text-xl font-bold text-ink">{formatPrice(totalPrice)}</dd>
                   </div>
                 </dl>
 
@@ -158,7 +156,7 @@ export default function CartPage() {
 
               <ul className="space-y-2">
                 {[
-                  { icon: Truck, label: "Free shipping on every order" },
+                  { icon: Truck, label: "Live courier rates at checkout" },
                   { icon: ShieldCheck, label: "Secure payments via Razorpay" },
                 ].map(({ icon: Icon, label }) => (
                   <li

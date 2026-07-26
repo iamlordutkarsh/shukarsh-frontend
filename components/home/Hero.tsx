@@ -11,7 +11,7 @@ import { ButtonLink } from "../ui/Button";
 import { PastelTile } from "../ui/PastelTile";
 
 const trust = [
-  { icon: Truck, label: "Free shipping" },
+  { icon: Truck, label: "Tracked delivery" },
   { icon: ShieldCheck, label: "Secure Razorpay checkout" },
   { icon: PackageCheck, label: "Handpicked, small batch" },
 ];

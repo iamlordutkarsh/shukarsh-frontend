@@ -4,8 +4,8 @@ import { RevealGroup, RevealItem } from "../motion/Reveal";
 const props = [
   {
     icon: Truck,
-    title: "Free shipping",
-    copy: "On every order, no minimum, no fine print.",
+    title: "Tracked delivery",
+    copy: "Live courier rates and a tracking link on every order.",
     tone: "bg-lavender-100 text-lavender-700",
   },
   {

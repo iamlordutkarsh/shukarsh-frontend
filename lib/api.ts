@@ -1,4 +1,4 @@
-import { Category, Order, Product, User } from "./types";
+import { Category, CourierOption, Order, Product, Shipment, Tracking, User } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -73,19 +73,35 @@ export async function getMe(token: string): Promise<{ user: User }> {
   });
 }
 
+export interface ShippingAddressInput {
+  name: string;
+  phone: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  zip: string;
+  country?: string;
+}
+
 export interface RazorpayOrderResponse {
   orderId: string;
   razorpayOrderId: string;
   amount: number;
   currency: string;
   keyId: string;
+  itemsTotal: number;
+  shippingAmount: number;
+  totalAmount: number;
+  courierName: string | null;
 }
 
 export async function createRazorpayOrder(
   payload: {
-    items: { productId: string; quantity: number; name: string; price: number; image?: string }[];
-    shippingAddress: { line1: string; line2?: string; city: string; state?: string; zip: string; country?: string };
+    items: { productId: string; quantity: number }[];
+    shippingAddress: ShippingAddressInput;
     email: string;
+    courierId?: number;
   },
   token?: string
 ): Promise<RazorpayOrderResponse> {
@@ -94,6 +110,38 @@ export async function createRazorpayOrder(
     body: JSON.stringify(payload),
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+}
+
+export interface LogisticsConfig {
+  enabled: boolean;
+  pickupPincode: string | null;
+}
+
+export async function getLogisticsConfig(): Promise<LogisticsConfig> {
+  return fetcher<LogisticsConfig>("/logistics/config", { cache: "no-store" });
+}
+
+export interface ShippingRates {
+  enabled: boolean;
+  serviceable: boolean;
+  weightKg?: number;
+  options: CourierOption[];
+  blocked?: { courierName: string; reason: string }[];
+  freeShipping: boolean;
+}
+
+export async function getShippingRates(payload: {
+  pincode: string;
+  items: { productId: string; quantity: number }[];
+}): Promise<ShippingRates> {
+  return fetcher<ShippingRates>("/logistics/rates", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function lookupPincode(pincode: string): Promise<{ city: string | null; state: string | null }> {
+  return fetcher<{ city: string | null; state: string | null }>(`/logistics/pincode/${pincode}`);
 }
 
 export async function verifyRazorpayPayment(payload: {
@@ -158,7 +206,55 @@ export async function deleteCategory(token: string, id: string): Promise<void> {
 }
 
 export async function getOrders(token: string): Promise<{ orders: Order[] }> {
-  return adminFetcher<{ orders: Order[] }>("/orders", token);
+  return adminFetcher<{ orders: Order[] }>("/orders", token, { cache: "no-store" });
+}
+
+export async function updateOrderStatus(token: string, id: string, status: string): Promise<{ order: Order }> {
+  return adminFetcher<{ order: Order }>(`/orders/${id}/status`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getOrderCourierOptions(
+  token: string,
+  id: string
+): Promise<{ serviceable: boolean; options: CourierOption[]; weightKg: number }> {
+  return adminFetcher<{ serviceable: boolean; options: CourierOption[]; weightKg: number }>(
+    `/logistics/orders/${id}/rates`,
+    token,
+    { cache: "no-store" }
+  );
+}
+
+export async function shipOrder(token: string, id: string, courierId?: number): Promise<{ order: Order }> {
+  return adminFetcher<{ order: Order }>(`/logistics/orders/${id}/ship`, token, {
+    method: "POST",
+    body: JSON.stringify(courierId ? { courierId } : {}),
+  });
+}
+
+export async function schedulePickup(token: string, id: string, date?: string): Promise<{ shipment: Shipment }> {
+  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/pickup`, token, {
+    method: "POST",
+    body: JSON.stringify(date ? { date } : {}),
+  });
+}
+
+export async function generateOrderInvoice(token: string, id: string): Promise<{ shipment: Shipment }> {
+  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/invoice`, token, { method: "POST" });
+}
+
+export async function generateOrderManifest(token: string, id: string): Promise<{ shipment: Shipment }> {
+  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/manifest`, token, { method: "POST" });
+}
+
+export async function cancelOrderShipment(token: string, id: string): Promise<{ shipment: Shipment }> {
+  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/cancel-shipment`, token, { method: "POST" });
+}
+
+export async function trackOrder(token: string, id: string): Promise<{ tracking: Tracking | null }> {
+  return adminFetcher<{ tracking: Tracking | null }>(`/logistics/orders/${id}/track`, token, { cache: "no-store" });
 }
 
 export async function uploadProductImages(token: string, files: File[]): Promise<{ urls: string[] }> {

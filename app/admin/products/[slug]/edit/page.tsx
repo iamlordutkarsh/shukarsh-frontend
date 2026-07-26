@@ -42,6 +42,11 @@ export default function EditProductPage() {
       images: form.images,
       categoryId: form.categoryId,
       isActive: form.isActive,
+      weightKg: Number(form.weightKg),
+      lengthCm: Number(form.lengthCm),
+      breadthCm: Number(form.breadthCm),
+      heightCm: Number(form.heightCm),
+      hsn: form.hsn.trim(),
     });
   };
 

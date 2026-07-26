@@ -143,7 +143,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
             <ul className="grid gap-3 sm:grid-cols-2">
               {[
-                { icon: Truck, label: "Free shipping, always" },
+                { icon: Truck, label: "Tracked delivery across India" },
                 { icon: ShieldCheck, label: "Secure Razorpay checkout" },
                 { icon: PackageCheck, label: "Packed with care" },
                 { icon: RotateCcw, label: "Easy 7-day support" },
@@ -167,7 +167,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {
                   title: "Shipping",
                   content:
-                    "Dispatched within 1-2 working days from India, with free shipping on every order. You will get a tracking link by email as soon as it leaves us.",
+                    "Dispatched within 1-2 working days from India. Enter your PIN code at checkout to see live courier rates and delivery estimates, then track the parcel from your account once it leaves us.",
                 },
                 {
                   title: "Care & returns",

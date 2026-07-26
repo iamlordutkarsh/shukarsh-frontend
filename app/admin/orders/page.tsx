@@ -3,25 +3,30 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Truck } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
+import { ShippingDrawer } from "../../../components/admin/ShippingDrawer";
+import { Button } from "../../../components/ui/Button";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { EmptyCartArt } from "../../../components/ui/KawaiiArt";
-import { Pill } from "../../../components/ui/Pill";
 import { Skeleton } from "../../../components/ui/Skeleton";
-import { getOrders } from "../../../lib/api";
+import { useToast } from "../../../components/ui/Toast";
+import { getOrders, updateOrderStatus } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
-import { Order } from "../../../lib/types";
+import { Order, Shipment } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
 
 type AdminOrder = Order & { email?: string | null; user?: { email?: string | null } | null };
 
-const statusTones: Record<string, "peach" | "lavender" | "blush" | "mint" | "ink"> = {
-  PENDING: "peach",
-  PROCESSING: "lavender",
-  SHIPPED: "blush",
-  DELIVERED: "mint",
-  CANCELLED: "ink",
+const ORDER_STATUSES = ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"] as const;
+
+const statusClasses: Record<string, string> = {
+  PENDING: "bg-peach-100 text-peach-400",
+  PROCESSING: "bg-lavender-100 text-lavender-700",
+  SHIPPED: "bg-blush-100 text-blush-500",
+  DELIVERED: "bg-mint-100 text-mint-400",
+  CANCELLED: "bg-ink-900 text-white",
+  RETURNED: "bg-rose-50 text-rose-500",
 };
 
 const paymentClasses: Record<string, string> = {
@@ -44,11 +49,14 @@ function shippingLineOf(order: AdminOrder) {
 
 export default function AdminOrdersPage() {
   const { token } = useAuth();
+  const { toast } = useToast();
   const reduced = useReducedMotion();
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [shippingId, setShippingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -70,9 +78,36 @@ export default function AdminOrdersPage() {
     };
   }, [token]);
 
+  const replaceOrder = (next: Order) =>
+    setOrders((current) => current.map((order) => (order.id === next.id ? { ...order, ...next } : order)));
+
+  const replaceShipment = (orderId: string, shipment: Shipment) =>
+    setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, shipment } : order)));
+
+  const handleStatus = async (id: string, status: string) => {
+    if (!token) return;
+    setSavingId(id);
+
+    try {
+      const data = await updateOrderStatus(token, id, status);
+      replaceOrder(data.order);
+      toast({ title: "Order updated", description: `Marked as ${status.toLowerCase()}.`, tone: "success" });
+    } catch (err) {
+      toast({
+        title: "Could not update this order",
+        description: err instanceof Error ? err.message : "Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const paidTotal = orders
     .filter((order) => order.paymentStatus === "PAID")
     .reduce((total, order) => total + Number(order.totalAmount), 0);
+
+  const shippingOrder = orders.find((order) => order.id === shippingId) ?? null;
 
   return (
     <AdminLayout
@@ -107,38 +142,56 @@ export default function AdminOrdersPage() {
             const open = expanded === order.id;
             const customer = customerOf(order);
             const shipping = shippingLineOf(order);
+            const awb = order.shipment?.awb ?? null;
 
             return (
               <li key={order.id} className="overflow-hidden rounded-4xl bg-surface/90 shadow-soft hairline">
-                <button
-                  type="button"
-                  onClick={() => setExpanded(open ? null : order.id)}
-                  aria-expanded={open}
-                  aria-controls={`order-items-${order.id}`}
-                  className="flex w-full flex-wrap items-center gap-4 p-5 text-left transition-colors hover:bg-lavender-50/60"
-                >
-                  <div className="min-w-0 flex-1">
-                    <span className="block font-mono text-xs font-semibold text-ink">#{order.id.slice(0, 8)}</span>
-                    <span className="mt-1 block truncate text-sm font-semibold text-ink">
-                      {order.customerName ?? customer ?? "Guest checkout"}
+                <div className="flex flex-wrap items-center gap-3 p-5">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(open ? null : order.id)}
+                    aria-expanded={open}
+                    aria-controls={`order-items-${order.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-mono text-xs font-semibold text-ink">#{order.id.slice(0, 8)}</span>
+                      <span className="mt-1 block truncate text-sm font-semibold text-ink">
+                        {order.customerName ?? customer ?? "Guest checkout"}
+                      </span>
+                      {order.customerName && customer && (
+                        <span className="mt-0.5 block truncate text-xs text-muted">{customer}</span>
+                      )}
+                      <span className="mt-0.5 block text-xs text-muted">
+                        {new Date(order.createdAt).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                        {" · "}
+                        {order.items.length} item{order.items.length === 1 ? "" : "s"}
+                        {shipping ? ` · ${shipping}` : ""}
+                      </span>
+                      {awb && (
+                        <span className="mt-1 block truncate font-mono text-xs text-lavender-700">
+                          {order.shipment?.courierName ? `${order.shipment.courierName} · ` : ""}
+                          {awb}
+                        </span>
+                      )}
                     </span>
-                    {order.customerName && customer && (
-                      <span className="mt-0.5 block truncate text-xs text-muted">{customer}</span>
-                    )}
-                    <span className="mt-0.5 block text-xs text-muted">
-                      {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                      {" · "}
-                      {order.items.length} item{order.items.length === 1 ? "" : "s"}
-                      {shipping ? ` · ${shipping}` : ""}
-                    </span>
-                  </div>
+
+                    <span className="shrink-0 text-base font-bold text-ink">{formatPrice(order.totalAmount)}</span>
+                    <ChevronDown
+                      aria-hidden
+                      className={cn(
+                        "h-4 w-4 shrink-0 text-faint transition-transform duration-200 ease-[var(--ease-soft)]",
+                        open && "rotate-180"
+                      )}
+                      strokeWidth={2.4}
+                    />
+                  </button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <Pill tone={statusTones[order.status] ?? "lavender"}>{order.status.toLowerCase()}</Pill>
                     <span
                       className={cn(
                         "inline-flex items-center rounded-full px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.14em]",
@@ -147,20 +200,30 @@ export default function AdminOrdersPage() {
                     >
                       {order.paymentStatus.toLowerCase()}
                     </span>
-                  </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className="text-base font-bold text-ink">{formatPrice(order.totalAmount)}</span>
-                    <ChevronDown
-                      aria-hidden
+                    <select
+                      aria-label={`Status for order ${order.id.slice(0, 8)}`}
+                      value={order.status}
+                      disabled={savingId === order.id}
+                      onChange={(event) => handleStatus(order.id, event.target.value)}
                       className={cn(
-                        "h-4 w-4 text-faint transition-transform duration-200 ease-[var(--ease-soft)]",
-                        open && "rotate-180"
+                        "h-9 cursor-pointer rounded-full border-0 px-3 text-[0.6875rem] font-bold uppercase tracking-[0.14em] outline-none transition-opacity focus:ring-2 focus:ring-lavender-400 disabled:opacity-50",
+                        statusClasses[order.status] ?? "bg-lavender-100 text-lavender-700"
                       )}
-                      strokeWidth={2.4}
-                    />
+                    >
+                      {ORDER_STATUSES.map((status) => (
+                        <option key={status} value={status} className="bg-surface text-ink">
+                          {status.toLowerCase()}
+                        </option>
+                      ))}
+                    </select>
+
+                    <Button variant="secondary" size="sm" onClick={() => setShippingId(order.id)}>
+                      <Truck className="h-4 w-4" strokeWidth={2.4} />
+                      {awb ? "Shipping" : "Ship"}
+                    </Button>
                   </div>
-                </button>
+                </div>
 
                 <AnimatePresence initial={false}>
                   {open && (
@@ -197,8 +260,22 @@ export default function AdminOrdersPage() {
                           })}
                         </ul>
 
+                        <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-line pt-3 text-xs">
+                          <div className="flex gap-1.5">
+                            <dt className="text-muted">Items</dt>
+                            <dd className="font-semibold text-ink">{formatPrice(order.itemsTotal)}</dd>
+                          </div>
+                          <div className="flex gap-1.5">
+                            <dt className="text-muted">Shipping</dt>
+                            <dd className="font-semibold text-ink">
+                              {formatPrice(order.shippingAmount)}
+                              {order.courierName ? ` · ${order.courierName}` : ""}
+                            </dd>
+                          </div>
+                        </dl>
+
                         {order.razorpayPaymentId && (
-                          <p className="mt-4 font-mono text-xs text-faint">Payment {order.razorpayPaymentId}</p>
+                          <p className="mt-3 font-mono text-xs text-faint">Payment {order.razorpayPaymentId}</p>
                         )}
                       </div>
                     </motion.div>
@@ -209,6 +286,16 @@ export default function AdminOrdersPage() {
           })}
         </ul>
       )}
+
+      {/* Keyed so tracking and pickup state never leak between orders. */}
+      <ShippingDrawer
+        key={shippingId ?? "closed"}
+        order={shippingOrder}
+        open={shippingOrder !== null}
+        onClose={() => setShippingId(null)}
+        onOrderChange={replaceOrder}
+        onShipmentChange={replaceShipment}
+      />
     </AdminLayout>
   );
 }

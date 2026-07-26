@@ -26,7 +26,15 @@ export interface FormData {
   images: string[];
   categoryId: string;
   isActive: boolean;
+  weightKg: string;
+  lengthCm: string;
+  breadthCm: string;
+  heightCm: string;
+  hsn: string;
 }
+
+/** Matches the Prisma defaults so a blank field never blocks a save. */
+const PARCEL_DEFAULTS = { weightKg: "0.5", lengthCm: "15", breadthCm: "12", heightCm: "6" };
 
 export default function ProductForm({ categories, product, onSubmit, submitLabel }: ProductFormProps) {
   const router = useRouter();
@@ -43,10 +51,21 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     images: product?.images ?? [],
     categoryId: product?.categoryId || "",
     isActive: product?.isActive ?? true,
+    weightKg: product?.weightKg != null ? String(product.weightKg) : PARCEL_DEFAULTS.weightKg,
+    lengthCm: product?.lengthCm != null ? String(product.lengthCm) : PARCEL_DEFAULTS.lengthCm,
+    breadthCm: product?.breadthCm != null ? String(product.breadthCm) : PARCEL_DEFAULTS.breadthCm,
+    heightCm: product?.heightCm != null ? String(product.heightCm) : PARCEL_DEFAULTS.heightCm,
+    hsn: product?.hsn || "",
   });
 
   const priceNumber = Number(form.price);
   const pricePreview = form.price.trim() && Number.isFinite(priceNumber) ? formatPrice(priceNumber) : null;
+
+  const volumetricKg = (() => {
+    const volume = Number(form.lengthCm) * Number(form.breadthCm) * Number(form.heightCm);
+    if (!Number.isFinite(volume) || volume <= 0) return null;
+    return (volume / 5000).toFixed(2);
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,6 +201,83 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
             </label>
             <span className="mt-0.5 block text-xs text-muted">Inactive products stay hidden from the storefront.</span>
           </span>
+        </div>
+      </FormCard>
+
+      <FormCard
+        title="Shipping"
+        description="Couriers price on the packed parcel, so measure the box you actually post."
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField
+            label="Weight (kg)"
+            htmlFor={`${uid}-weight`}
+            hint={volumetricKg ? `Volumetric weight of this box is ${volumetricKg} kg.` : undefined}
+          >
+            <input
+              id={`${uid}-weight`}
+              required
+              type="number"
+              min="0.01"
+              max="50"
+              step="0.01"
+              value={form.weightKg}
+              onChange={(e) => setForm({ ...form, weightKg: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+          <FormField label="HSN code" htmlFor={`${uid}-hsn`} hint="Optional. Printed on the shipping invoice.">
+            <input
+              id={`${uid}-hsn`}
+              value={form.hsn}
+              onChange={(e) => setForm({ ...form, hsn: e.target.value })}
+              placeholder="61091000"
+              maxLength={10}
+              className={inputClass}
+            />
+          </FormField>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-3">
+          <FormField label="Length (cm)" htmlFor={`${uid}-length`}>
+            <input
+              id={`${uid}-length`}
+              required
+              type="number"
+              min="1"
+              max="200"
+              step="1"
+              value={form.lengthCm}
+              onChange={(e) => setForm({ ...form, lengthCm: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+          <FormField label="Breadth (cm)" htmlFor={`${uid}-breadth`}>
+            <input
+              id={`${uid}-breadth`}
+              required
+              type="number"
+              min="1"
+              max="200"
+              step="1"
+              value={form.breadthCm}
+              onChange={(e) => setForm({ ...form, breadthCm: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+          <FormField label="Height (cm)" htmlFor={`${uid}-height`}>
+            <input
+              id={`${uid}-height`}
+              required
+              type="number"
+              min="1"
+              max="200"
+              step="1"
+              value={form.heightCm}
+              onChange={(e) => setForm({ ...form, heightCm: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
         </div>
       </FormCard>
 

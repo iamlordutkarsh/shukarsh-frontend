@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     template: "%s · Shukarsh",
   },
   description:
-    "Small-batch kitchen finds, soft everyday clothing and salon-grade press-on nails. Pastel picks, secure Razorpay checkout, free shipping on every order.",
+    "Small-batch kitchen finds, soft everyday clothing and salon-grade press-on nails. Pastel picks, secure Razorpay checkout, tracked delivery across India.",
   openGraph: {
     title: "Shukarsh — Kitchen, clothing & press-on nails",
     description:

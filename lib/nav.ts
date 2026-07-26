@@ -95,7 +95,7 @@ export const footerGroups: { title: string; links: NavHighlight[] }[] = [
 ];
 
 export const announcements = [
-  "Free shipping on every order",
+  "Tracked delivery across India",
   "New pastel drops every Friday",
   "Secure payments via Razorpay",
   "Handpicked, small-batch finds",
