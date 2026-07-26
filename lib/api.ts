@@ -276,6 +276,10 @@ export async function cancelOrderShipment(token: string, id: string): Promise<{ 
   return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/cancel-shipment`, token, { method: "POST" });
 }
 
+export async function getOrder(token: string, id: string): Promise<{ order: Order }> {
+  return adminFetcher<{ order: Order }>(`/orders/${id}`, token, { cache: "no-store" });
+}
+
 export async function trackOrder(token: string, id: string): Promise<{ tracking: Tracking | null }> {
   return adminFetcher<{ tracking: Tracking | null }>(`/logistics/orders/${id}/track`, token, { cache: "no-store" });
 }
