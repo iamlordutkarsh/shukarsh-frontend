@@ -133,7 +133,7 @@ export default function AdminOrdersPage() {
         // webhook missed. The server keeps a cooldown, so refreshing the page
         // repeatedly costs nothing.
         const result = await syncTracking(token).catch(() => null);
-        if (!active || !result?.advanced) return;
+        if (!active || !result || result.skipped || !result.advanced) return;
 
         const refreshed = await getOrders(token).catch(() => null);
         if (active && refreshed) setOrders(refreshed.orders);
@@ -218,11 +218,8 @@ export default function AdminOrdersPage() {
     try {
       const result = await syncTracking(token);
 
-      if (result.advanced > 0) {
-        const refreshed = await getOrders(token);
-        setOrders(refreshed.orders);
-      }
-
+      // A skipped call did no work, so there is nothing new to fetch. Checking
+      // this first stops the panel refetching and then saying it did not.
       if (result.skipped) {
         toast({
           title: "Already up to date",
@@ -230,6 +227,11 @@ export default function AdminOrdersPage() {
           tone: "info",
         });
         return;
+      }
+
+      if (result.advanced > 0) {
+        const refreshed = await getOrders(token);
+        setOrders(refreshed.orders);
       }
 
       toast({
@@ -445,6 +447,7 @@ export default function AdminOrdersPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleStatus(order, "CANCELLED")}
+                          disabled={savingId === order.id}
                           className="text-rose-500 hover:bg-rose-50"
                         >
                           Cancel
