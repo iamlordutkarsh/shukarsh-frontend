@@ -42,8 +42,10 @@ interface ShippingDrawerProps {
 
 type BusyKey = "ship" | "pickup" | "invoice" | "manifest" | "cancel" | "track" | "manual" | null;
 
+// No fixed height: globals.css pads form controls by 0.75rem top and bottom, so
+// an h-9 box has less room than its own padding needs and clips the text.
 const manualFieldClass =
-  "h-9 w-full rounded-2xl border-0 bg-surface px-3 text-sm text-ink ring-1 ring-line placeholder:text-faint focus:ring-2 focus:ring-lavender-400";
+  "w-full rounded-2xl border-0 bg-surface px-3 py-2.5 text-sm text-ink ring-1 ring-line placeholder:text-faint focus:ring-2 focus:ring-lavender-400";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null;
@@ -445,7 +447,7 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
                   aria-label="Pickup date"
                   value={pickupDate}
                   onChange={(event) => setPickupDate(event.target.value)}
-                  className="h-9 flex-1 rounded-2xl border-0 bg-surface px-3 text-sm text-ink ring-1 ring-line focus:ring-2 focus:ring-lavender-400"
+                  className="flex-1 rounded-2xl border-0 bg-surface px-3 py-2.5 text-sm text-ink ring-1 ring-line focus:ring-2 focus:ring-lavender-400"
                 />
                 <Button variant="secondary" size="sm" onClick={handlePickup} loading={busy === "pickup"}>
                   <CalendarClock className="h-4 w-4" strokeWidth={2.4} />

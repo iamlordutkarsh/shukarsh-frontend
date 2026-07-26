@@ -541,7 +541,7 @@ export default function AdminOrdersPage() {
                             value={order.status}
                             disabled={savingId === order.id}
                             onChange={(event) => handleStatus(order, event.target.value)}
-                            className="h-9 cursor-pointer rounded-2xl border-0 bg-surface px-3 text-sm text-ink ring-1 ring-line focus:ring-2 focus:ring-lavender-400 disabled:opacity-50"
+                            className="w-auto cursor-pointer rounded-2xl border-0 bg-surface px-3 py-2 text-sm text-ink ring-1 ring-line focus:ring-2 focus:ring-lavender-400 disabled:opacity-50"
                           >
                             {ORDER_STATUSES.map((status) => (
                               <option key={status} value={status}>
