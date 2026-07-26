@@ -83,14 +83,24 @@ export default function AdminOrdersPage() {
     let active = true;
 
     getOrders(token)
-      .then((data) => {
-        if (active) setOrders(data.orders);
+      .then(async (data) => {
+        if (!active) return;
+        setOrders(data.orders);
+        setLoading(false);
+
+        // Opening the panel is the cue to catch up on anything the courier
+        // webhook missed. The server keeps a cooldown, so refreshing the page
+        // repeatedly costs nothing.
+        const result = await syncTracking(token).catch(() => null);
+        if (!active || !result?.advanced) return;
+
+        const refreshed = await getOrders(token).catch(() => null);
+        if (active && refreshed) setOrders(refreshed.orders);
       })
       .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : "Failed to load orders");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Failed to load orders");
+        setLoading(false);
       });
 
     return () => {
@@ -170,6 +180,15 @@ export default function AdminOrdersPage() {
       if (result.advanced > 0) {
         const refreshed = await getOrders(token);
         setOrders(refreshed.orders);
+      }
+
+      if (result.skipped) {
+        toast({
+          title: "Already up to date",
+          description: "The couriers were checked a moment ago. Try again in a few minutes.",
+          tone: "info",
+        });
+        return;
       }
 
       toast({

@@ -234,12 +234,16 @@ export async function shipOrder(token: string, id: string, courierId?: number): 
   });
 }
 
-export async function syncTracking(
-  token: string
-): Promise<{ checked: number; advanced: number; failed: number }> {
-  return adminFetcher<{ checked: number; advanced: number; failed: number }>("/logistics/sync", token, {
-    method: "POST",
-  });
+export interface SyncResult {
+  checked: number;
+  advanced: number;
+  failed: number;
+  /** True when the server reused a recent run instead of asking couriers again. */
+  skipped: boolean;
+}
+
+export async function syncTracking(token: string): Promise<SyncResult> {
+  return adminFetcher<SyncResult>("/logistics/sync", token, { method: "POST" });
 }
 
 export async function setOrderTracking(
