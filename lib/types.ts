@@ -45,6 +45,7 @@ export interface OrderItem {
 export interface Shipment {
   id: string;
   orderId: string;
+  provider: string;
   providerOrderId: string | null;
   providerShipmentId: string | null;
   providerReference: string | null;

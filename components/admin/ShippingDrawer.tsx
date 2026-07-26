@@ -20,6 +20,7 @@ import {
   generateOrderManifest,
   getOrderCourierOptions,
   schedulePickup,
+  setOrderTracking,
   shipOrder,
   trackOrder,
 } from "../../lib/api";
@@ -39,7 +40,10 @@ interface ShippingDrawerProps {
   onShipmentChange: (orderId: string, shipment: Shipment) => void;
 }
 
-type BusyKey = "ship" | "pickup" | "invoice" | "manifest" | "cancel" | "track" | null;
+type BusyKey = "ship" | "pickup" | "invoice" | "manifest" | "cancel" | "track" | "manual" | null;
+
+const manualFieldClass =
+  "h-9 w-full rounded-2xl border-0 bg-surface px-3 text-sm text-ink ring-1 ring-line placeholder:text-faint focus:ring-2 focus:ring-lavender-400";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null;
@@ -71,12 +75,14 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
   const [preferredCourierId, setPreferredCourierId] = useState<number | null>(null);
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [pickupDate, setPickupDate] = useState("");
+  const [manual, setManual] = useState({ awb: "", courierName: "", trackingUrl: "" });
   const [busy, setBusy] = useState<BusyKey>(null);
 
   const orderId = order?.id ?? null;
   const shipment = order?.shipment ?? null;
   const address = order?.shippingAddress ?? {};
   const shipped = Boolean(shipment?.awb);
+  const isManual = shipment?.provider === "manual";
   const paid = order?.paymentStatus === "PAID";
   const needsQuote = open && Boolean(token) && orderId !== null && !shipped && paid;
 
@@ -148,6 +154,26 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
         });
       },
       "Could not create this shipment"
+    );
+
+  const handleManualTracking = () =>
+    run(
+      "manual",
+      async () => {
+        const data = await setOrderTracking(token!, order.id, {
+          awb: manual.awb.trim(),
+          courierName: manual.courierName.trim() || undefined,
+          trackingUrl: manual.trackingUrl.trim() || undefined,
+        });
+        onOrderChange(data.order);
+        setManual({ awb: "", courierName: "", trackingUrl: "" });
+        toast({
+          title: "Tracking saved",
+          description: "The order is marked shipped and the customer can track it.",
+          tone: "success",
+        });
+      },
+      "Could not save this tracking number"
     );
 
   const handlePickup = () =>
@@ -317,6 +343,49 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
               <Package className="h-4 w-4" strokeWidth={2.4} />
               Create shipment and label
             </Button>
+
+            <div className="mt-5 rounded-3xl bg-surface/80 p-4 hairline">
+              <h3 className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint">
+                Or enter tracking yourself
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                For parcels sent by India Post or a local courier. The customer sees this on their order.
+              </p>
+
+              <div className="mt-3 space-y-2">
+                <input
+                  aria-label="Tracking number"
+                  placeholder="Tracking number"
+                  value={manual.awb}
+                  onChange={(event) => setManual({ ...manual, awb: event.target.value })}
+                  className={manualFieldClass}
+                />
+                <input
+                  aria-label="Courier name"
+                  placeholder="Courier name (optional)"
+                  value={manual.courierName}
+                  onChange={(event) => setManual({ ...manual, courierName: event.target.value })}
+                  className={manualFieldClass}
+                />
+                <input
+                  aria-label="Tracking link"
+                  placeholder="Tracking link (optional)"
+                  value={manual.trackingUrl}
+                  onChange={(event) => setManual({ ...manual, trackingUrl: event.target.value })}
+                  className={manualFieldClass}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleManualTracking}
+                  loading={busy === "manual"}
+                  disabled={manual.awb.trim().length < 3}
+                  className="w-full"
+                >
+                  Save tracking and mark shipped
+                </Button>
+              </div>
+            </div>
           </section>
         ) : (
           <section className="space-y-4">
@@ -345,19 +414,29 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
               {shipment?.trackingUrl && <DocLink href={shipment.trackingUrl} label="Track on Shiprocket" icon={Truck} />}
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              {!shipment?.invoiceUrl && (
-                <Button variant="secondary" size="sm" onClick={handleInvoice} loading={busy === "invoice"}>
-                  Generate invoice
-                </Button>
-              )}
-              {!shipment?.manifestUrl && (
-                <Button variant="secondary" size="sm" onClick={handleManifest} loading={busy === "manifest"}>
-                  Generate manifest
-                </Button>
-              )}
-            </div>
+            {isManual && (
+              <p className="rounded-3xl bg-peach-100/70 px-4 py-3 text-xs leading-relaxed text-ink-700">
+                You entered this tracking by hand, so Shiprocket has no record of it. Labels, invoices,
+                manifests and pickups are not available. To cancel, set the order status to Cancelled.
+              </p>
+            )}
 
+            {!isManual && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {!shipment?.invoiceUrl && (
+                  <Button variant="secondary" size="sm" onClick={handleInvoice} loading={busy === "invoice"}>
+                    Generate invoice
+                  </Button>
+                )}
+                {!shipment?.manifestUrl && (
+                  <Button variant="secondary" size="sm" onClick={handleManifest} loading={busy === "manifest"}>
+                    Generate manifest
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {!isManual && (
             <div className="rounded-3xl bg-surface/80 p-4 hairline">
               <h3 className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint">Schedule a pickup</h3>
               <div className="mt-2.5 flex flex-wrap gap-2">
@@ -375,6 +454,7 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
               </div>
               <p className="mt-2 text-xs text-muted">Leave the date blank for the next available slot.</p>
             </div>
+            )}
 
             <div className="rounded-3xl bg-surface/80 p-4 hairline">
               <div className="flex items-center justify-between gap-3">
@@ -412,10 +492,18 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
               )}
             </div>
 
-            <Button variant="ghost" size="sm" onClick={handleCancel} loading={busy === "cancel"} className="w-full text-rose-500 hover:bg-rose-50">
-              <XCircle className="h-4 w-4" strokeWidth={2.4} />
-              Cancel this shipment
-            </Button>
+            {!isManual && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancel}
+                loading={busy === "cancel"}
+                className="w-full text-rose-500 hover:bg-rose-50"
+              >
+                <XCircle className="h-4 w-4" strokeWidth={2.4} />
+                Cancel this shipment
+              </Button>
+            )}
           </section>
         )}
       </div>

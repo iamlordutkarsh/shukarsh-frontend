@@ -234,6 +234,17 @@ export async function shipOrder(token: string, id: string, courierId?: number): 
   });
 }
 
+export async function setOrderTracking(
+  token: string,
+  id: string,
+  data: { awb: string; courierName?: string; trackingUrl?: string }
+): Promise<{ order: Order }> {
+  return adminFetcher<{ order: Order }>(`/logistics/orders/${id}/tracking`, token, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function schedulePickup(token: string, id: string, date?: string): Promise<{ shipment: Shipment }> {
   return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/pickup`, token, {
     method: "POST",
