@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Check, ChevronDown, RefreshCw, Truck } from "lucide-react";
+import { Check, ChevronDown, Package, RefreshCw, TriangleAlert, Truck } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { ShippingDrawer } from "../../../components/admin/ShippingDrawer";
 import { Button } from "../../../components/ui/Button";
@@ -63,6 +63,47 @@ function shippingLineOf(order: AdminOrder) {
   if (!address) return null;
   const parts = [address.city, address.state, address.zip].filter(Boolean);
   return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function productLineOf(order: AdminOrder) {
+  const names = order.items.map((item) => item.product?.name).filter(Boolean) as string[];
+  if (names.length === 0) return "Items no longer available";
+  if (names.length === 1) return names[0]!;
+  return `${names[0]} +${names.length - 1} more`;
+}
+
+function daysWaiting(order: AdminOrder) {
+  return Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 86_400_000);
+}
+
+/** Covers of what was ordered, so a packer can spot the order by sight. */
+function OrderThumbs({ order }: { order: AdminOrder }) {
+  const images = order.items
+    .map((item) => item.product?.images?.[0])
+    .filter(Boolean)
+    .slice(0, 3) as string[];
+
+  if (images.length === 0) {
+    return (
+      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-lavender-100">
+        <Package className="h-5 w-5 text-lavender-500" strokeWidth={2.2} />
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex shrink-0 -space-x-3">
+      {images.map((image, index) => (
+        <span
+          key={`${image}-${index}`}
+          className="relative h-14 w-14 overflow-hidden rounded-2xl bg-lavender-100 ring-2 ring-surface"
+          style={{ zIndex: images.length - index }}
+        >
+          <Image src={image} alt="" fill sizes="56px" className="object-cover" />
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export default function AdminOrdersPage() {
@@ -300,6 +341,9 @@ export default function AdminOrdersPage() {
             const customer = customerOf(order);
             const shipping = shippingLineOf(order);
             const awb = order.shipment?.awb ?? null;
+            const awaitingApproval = order.status === "PENDING" && order.paymentStatus === "PAID";
+            // Only nag about orders that are actually waiting on the shop.
+            const waiting = awaitingApproval ? daysWaiting(order) : null;
 
             return (
               <li key={order.id} className="overflow-hidden rounded-4xl bg-surface/90 shadow-soft hairline">
@@ -309,26 +353,46 @@ export default function AdminOrdersPage() {
                     onClick={() => setExpanded(open ? null : order.id)}
                     aria-expanded={open}
                     aria-controls={`order-items-${order.id}`}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
                   >
+                    <OrderThumbs order={order} />
+
                     <span className="min-w-0 flex-1">
-                      <span className="block font-mono text-xs font-semibold text-ink">#{order.id.slice(0, 8)}</span>
-                      <span className="mt-1 block truncate text-sm font-semibold text-ink">
-                        {order.customerName ?? customer ?? "Guest checkout"}
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-faint">#{order.id.slice(0, 8)}</span>
+                        {waiting !== null && (
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-[0.12em]",
+                              waiting >= 2 ? "bg-rose-50 text-rose-500" : "bg-peach-100 text-peach-400"
+                            )}
+                          >
+                            <TriangleAlert className="h-2.5 w-2.5" strokeWidth={3} />
+                            {waiting === 0 ? "Today" : `${waiting}d waiting`}
+                          </span>
+                        )}
                       </span>
-                      {order.customerName && customer && (
-                        <span className="mt-0.5 block truncate text-xs text-muted">{customer}</span>
-                      )}
-                      <span className="mt-0.5 block text-xs text-muted">
+
+                      <span className="mt-1 block truncate text-sm font-semibold text-ink">
+                        {productLineOf(order)}
+                      </span>
+
+                      <span className="mt-0.5 block truncate text-xs text-muted">
+                        {order.customerName ?? customer ?? "Guest checkout"}
+                        {" · "}
+                        {order.items.reduce((total, item) => total + item.quantity, 0)} unit
+                        {order.items.reduce((total, item) => total + item.quantity, 0) === 1 ? "" : "s"}
+                        {shipping ? ` · ${shipping}` : ""}
+                      </span>
+
+                      <span className="mt-0.5 block text-xs text-faint">
                         {new Date(order.createdAt).toLocaleDateString("en-IN", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
                         })}
-                        {" · "}
-                        {order.items.length} item{order.items.length === 1 ? "" : "s"}
-                        {shipping ? ` · ${shipping}` : ""}
                       </span>
+
                       {awb && (
                         <span className="mt-1 block truncate font-mono text-xs text-lavender-700">
                           {order.shipment?.courierName ? `${order.shipment.courierName} · ` : ""}
@@ -375,15 +439,25 @@ export default function AdminOrdersPage() {
                       ))}
                     </select>
 
-                    {order.status === "PENDING" && order.paymentStatus === "PAID" ? (
-                      <Button
-                        size="sm"
-                        onClick={() => handleStatus(order, "PROCESSING")}
-                        loading={savingId === order.id}
-                      >
-                        <Check className="h-4 w-4" strokeWidth={2.6} />
-                        Approve
-                      </Button>
+                    {awaitingApproval ? (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => handleStatus(order, "PROCESSING")}
+                          loading={savingId === order.id}
+                        >
+                          <Check className="h-4 w-4" strokeWidth={2.6} />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleStatus(order, "CANCELLED")}
+                          className="text-rose-500 hover:bg-rose-50"
+                        >
+                          Cancel
+                        </Button>
+                      </>
                     ) : (
                       <Button variant="secondary" size="sm" onClick={() => setShippingId(order.id)}>
                         <Truck className="h-4 w-4" strokeWidth={2.4} />
