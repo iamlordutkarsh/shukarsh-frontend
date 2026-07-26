@@ -234,6 +234,14 @@ export async function shipOrder(token: string, id: string, courierId?: number): 
   });
 }
 
+export async function syncTracking(
+  token: string
+): Promise<{ checked: number; advanced: number; failed: number }> {
+  return adminFetcher<{ checked: number; advanced: number; failed: number }>("/logistics/sync", token, {
+    method: "POST",
+  });
+}
+
 export async function setOrderTracking(
   token: string,
   id: string,

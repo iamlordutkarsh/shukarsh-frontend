@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, Truck } from "lucide-react";
+import { Check, ChevronDown, RefreshCw, Truck } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { ShippingDrawer } from "../../../components/admin/ShippingDrawer";
 import { Button } from "../../../components/ui/Button";
@@ -11,7 +11,7 @@ import { EmptyState } from "../../../components/ui/EmptyState";
 import { EmptyCartArt } from "../../../components/ui/KawaiiArt";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useToast } from "../../../components/ui/Toast";
-import { getOrders, updateOrderStatus } from "../../../lib/api";
+import { getOrders, syncTracking, updateOrderStatus } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { Order, Shipment } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
@@ -19,6 +19,24 @@ import { cn, formatPrice } from "../../../lib/utils";
 type AdminOrder = Order & { email?: string | null; user?: { email?: string | null } | null };
 
 const ORDER_STATUSES = ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"] as const;
+
+/** The fulfilment path, in the order the work actually happens. */
+const TABS = [
+  { key: "PENDING", label: "To approve", empty: "Nothing waiting on you." },
+  { key: "PROCESSING", label: "Packing", empty: "Nothing to pack." },
+  { key: "SHIPPED", label: "In transit", empty: "Nothing on the road." },
+  { key: "DELIVERED", label: "Delivered", empty: "No deliveries yet." },
+  { key: "CLOSED", label: "Cancelled", empty: "No cancellations." },
+  { key: "ALL", label: "All", empty: "No orders yet." },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
+function inTab(order: Order, tab: TabKey) {
+  if (tab === "ALL") return true;
+  if (tab === "CLOSED") return order.status === "CANCELLED" || order.status === "RETURNED";
+  return order.status === tab;
+}
 
 const statusClasses: Record<string, string> = {
   PENDING: "bg-peach-100 text-peach-400",
@@ -57,6 +75,8 @@ export default function AdminOrdersPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [shippingId, setShippingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>("PENDING");
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -140,11 +160,47 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleSync = async () => {
+    if (!token) return;
+    setSyncing(true);
+
+    try {
+      const result = await syncTracking(token);
+
+      if (result.advanced > 0) {
+        const refreshed = await getOrders(token);
+        setOrders(refreshed.orders);
+      }
+
+      toast({
+        title:
+          result.checked === 0
+            ? "Nothing in transit"
+            : `${result.advanced} order${result.advanced === 1 ? "" : "s"} moved on`,
+        description:
+          result.checked === 0
+            ? "No shipments are waiting on a courier update."
+            : `Checked ${result.checked} shipment${result.checked === 1 ? "" : "s"} with the courier.`,
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Could not refresh tracking",
+        description: err instanceof Error ? err.message : "Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const paidTotal = orders
     .filter((order) => order.paymentStatus === "PAID")
     .reduce((total, order) => total + Number(order.totalAmount), 0);
 
   const shippingOrder = orders.find((order) => order.id === shippingId) ?? null;
+  const visible = orders.filter((order) => inTab(order, tab));
+  const activeTab = TABS.find((entry) => entry.key === tab)!;
 
   return (
     <AdminLayout
@@ -152,14 +208,57 @@ export default function AdminOrdersPage() {
       subtitle="Every order, newest first. Open one to see exactly what was packed."
       actions={
         !loading && orders.length > 0 ? (
-          <div className="rounded-3xl bg-surface/90 px-4 py-2.5 text-right shadow-soft hairline">
-            <span className="block text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint">Paid total</span>
-            <span className="mt-0.5 block text-sm font-bold text-ink">{formatPrice(paidTotal)}</span>
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" size="sm" onClick={handleSync} loading={syncing}>
+              <RefreshCw className="h-4 w-4" strokeWidth={2.4} />
+              Refresh tracking
+            </Button>
+            <div className="rounded-3xl bg-surface/90 px-4 py-2.5 text-right shadow-soft hairline">
+              <span className="block text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint">
+                Paid total
+              </span>
+              <span className="mt-0.5 block text-sm font-bold text-ink">{formatPrice(paidTotal)}</span>
+            </div>
           </div>
         ) : undefined
       }
     >
       {error && <p className="mb-5 rounded-3xl bg-rose-50 px-4 py-3 text-sm text-rose-500">{error}</p>}
+
+      {!loading && orders.length > 0 && (
+        <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Order stage">
+          {TABS.map((entry) => {
+            const count = orders.filter((order) => inTab(order, entry.key)).length;
+            const active = entry.key === tab;
+
+            return (
+              <button
+                key={entry.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(entry.key)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                  active
+                    ? "bg-gradient-to-r from-lavender-500 to-blush-400 text-white shadow-soft"
+                    : "bg-surface/90 text-muted shadow-soft hover:text-ink hairline"
+                )}
+              >
+                {entry.label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[0.6875rem] font-bold",
+                    active ? "bg-white/25 text-white" : "bg-lavender-100 text-lavender-700"
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3" role="status" aria-label="Loading orders">
@@ -173,9 +272,11 @@ export default function AdminOrdersPage() {
           title="No orders yet"
           description="Once someone checks out, their order lands here instantly."
         />
+      ) : visible.length === 0 ? (
+        <EmptyState compact art={<EmptyCartArt />} title={activeTab.empty} description="" />
       ) : (
         <ul className="space-y-3">
-          {orders.map((order) => {
+          {visible.map((order) => {
             const open = expanded === order.id;
             const customer = customerOf(order);
             const shipping = shippingLineOf(order);
@@ -255,10 +356,21 @@ export default function AdminOrdersPage() {
                       ))}
                     </select>
 
-                    <Button variant="secondary" size="sm" onClick={() => setShippingId(order.id)}>
-                      <Truck className="h-4 w-4" strokeWidth={2.4} />
-                      {awb ? "Shipping" : "Ship"}
-                    </Button>
+                    {order.status === "PENDING" && order.paymentStatus === "PAID" ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleStatus(order, "PROCESSING")}
+                        loading={savingId === order.id}
+                      >
+                        <Check className="h-4 w-4" strokeWidth={2.6} />
+                        Approve
+                      </Button>
+                    ) : (
+                      <Button variant="secondary" size="sm" onClick={() => setShippingId(order.id)}>
+                        <Truck className="h-4 w-4" strokeWidth={2.4} />
+                        {awb ? "Shipping" : "Ship"}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
