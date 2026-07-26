@@ -27,6 +27,7 @@ const TABS = [
   { key: "SHIPPED", label: "In transit", empty: "Nothing on the road." },
   { key: "DELIVERED", label: "Delivered", empty: "No deliveries yet." },
   { key: "CLOSED", label: "Cancelled", empty: "No cancellations." },
+  { key: "UNPAID", label: "Unpaid", empty: "No abandoned checkouts." },
   { key: "ALL", label: "All", empty: "No orders yet." },
 ] as const;
 
@@ -35,6 +36,14 @@ type TabKey = (typeof TABS)[number]["key"];
 function inTab(order: Order, tab: TabKey) {
   if (tab === "ALL") return true;
   if (tab === "CLOSED") return order.status === "CANCELLED" || order.status === "RETURNED";
+
+  // A checkout that was never paid is an abandoned cart, not work for the shop.
+  // It still gets a Pending row, so it needs its own tab or it would sit in the
+  // approval queue forever alongside orders that actually owe someone a parcel.
+  const closed = order.status === "CANCELLED" || order.status === "RETURNED";
+  if (tab === "UNPAID") return order.paymentStatus !== "PAID" && !closed;
+  if (order.paymentStatus !== "PAID") return false;
+
   return order.status === tab;
 }
 
