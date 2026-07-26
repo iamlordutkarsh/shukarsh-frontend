@@ -332,125 +332,113 @@ export default function CheckoutPage() {
             )}
 
             <motion.form
-              variants={staggerParent(0.05)}
+              variants={staggerParent(0.08)}
               initial="hidden"
               animate="show"
               onSubmit={handleSubmit}
-              className="space-y-4 rounded-4xl bg-surface/90 p-6 shadow-soft sm:p-8 hairline"
+              className="space-y-4"
             >
-              <motion.h2 variants={fadeUp} className="font-display text-xl text-ink">
-                Where should it go?
-              </motion.h2>
+              <motion.div
+                variants={fadeUp}
+                className="space-y-4 rounded-4xl bg-surface/90 p-6 shadow-soft sm:p-8 hairline"
+              >
+                <h2 className="font-display text-xl text-ink">Where should it go?</h2>
 
-              <motion.div variants={fadeUp} className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    required
+                    minLength={3}
+                    aria-label="Full name"
+                    placeholder="Full name"
+                    autoComplete="name"
+                    className={fieldClass}
+                    value={form.name}
+                    onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  />
+                  <input
+                    required
+                    aria-label="Mobile number"
+                    placeholder="10 digit mobile number"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    className={fieldClass}
+                    value={form.phone}
+                    onChange={(event) => setForm({ ...form, phone: normalizePhone(event.target.value) })}
+                  />
+                </div>
+
                 <input
                   required
-                  minLength={3}
-                  aria-label="Full name"
-                  placeholder="Full name"
-                  autoComplete="name"
+                  minLength={5}
+                  aria-label="Address"
+                  placeholder="Flat / house no, street"
+                  autoComplete="address-line1"
                   className={fieldClass}
-                  value={form.name}
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  value={form.line1}
+                  onChange={(event) => setForm({ ...form, line1: event.target.value })}
                 />
+
+                <input
+                  aria-label="Address line 2"
+                  placeholder="Area, landmark (optional)"
+                  autoComplete="address-line2"
+                  className={fieldClass}
+                  value={form.line2}
+                  onChange={(event) => setForm({ ...form, line2: event.target.value })}
+                />
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <input
+                    required
+                    aria-label="PIN code"
+                    placeholder="PIN code"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    className={fieldClass}
+                    value={form.zip}
+                    onChange={(event) =>
+                      setForm({ ...form, zip: event.target.value.replace(/\D/g, "").slice(0, 6) })
+                    }
+                  />
+                  <input
+                    required
+                    aria-label="City"
+                    placeholder="City"
+                    autoComplete="address-level2"
+                    className={fieldClass}
+                    value={form.city}
+                    onChange={(event) => setForm({ ...form, city: event.target.value })}
+                  />
+                  <select
+                    required
+                    aria-label="State"
+                    className={fieldClass}
+                    value={form.state}
+                    onChange={(event) => setForm({ ...form, state: event.target.value })}
+                  >
+                    <option value="">State</option>
+                    {INDIAN_STATES.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <input
                   required
-                  aria-label="Mobile number"
-                  placeholder="10 digit mobile number"
-                  inputMode="numeric"
-                  autoComplete="tel-national"
+                  type="email"
+                  aria-label="Email"
+                  placeholder="Email for your receipt"
+                  autoComplete="email"
                   className={fieldClass}
-                  value={form.phone}
-                  onChange={(event) => setForm({ ...form, phone: normalizePhone(event.target.value) })}
+                  value={form.email}
+                  onChange={(event) => setForm({ ...form, email: event.target.value })}
                 />
               </motion.div>
 
-              <motion.input
+              <motion.section
                 variants={fadeUp}
-                required
-                minLength={5}
-                aria-label="Address"
-                placeholder="Flat / house no, street"
-                autoComplete="address-line1"
-                className={fieldClass}
-                value={form.line1}
-                onChange={(event) => setForm({ ...form, line1: event.target.value })}
-              />
-
-              <motion.input
-                variants={fadeUp}
-                aria-label="Address line 2"
-                placeholder="Area, landmark (optional)"
-                autoComplete="address-line2"
-                className={fieldClass}
-                value={form.line2}
-                onChange={(event) => setForm({ ...form, line2: event.target.value })}
-              />
-
-              <motion.div variants={fadeUp} className="grid gap-3 sm:grid-cols-3">
-                <input
-                  required
-                  aria-label="PIN code"
-                  placeholder="PIN code"
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  className={fieldClass}
-                  value={form.zip}
-                  onChange={(event) =>
-                    setForm({ ...form, zip: event.target.value.replace(/\D/g, "").slice(0, 6) })
-                  }
-                />
-                <input
-                  required
-                  aria-label="City"
-                  placeholder="City"
-                  autoComplete="address-level2"
-                  className={fieldClass}
-                  value={form.city}
-                  onChange={(event) => setForm({ ...form, city: event.target.value })}
-                />
-                <select
-                  required
-                  aria-label="State"
-                  className={fieldClass}
-                  value={form.state}
-                  onChange={(event) => setForm({ ...form, state: event.target.value })}
-                >
-                  <option value="">State</option>
-                  {INDIAN_STATES.map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
-              </motion.div>
-
-              <motion.input
-                variants={fadeUp}
-                required
-                type="email"
-                aria-label="Email"
-                placeholder="Email for your receipt"
-                autoComplete="email"
-                className={fieldClass}
-                value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
-              />
-
-              <motion.div variants={fadeUp} className="pt-1">
-                <Button type="submit" loading={loading} size="lg" className="w-full" disabled={unserviceable}>
-                  <CreditCard className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.3} />
-                  {loading ? "Opening Razorpay" : `Pay ${formatPrice(total)}`}
-                </Button>
-                <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-faint">
-                  <Lock className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  Cards, UPI, wallets and net banking, all handled by Razorpay.
-                </p>
-              </motion.div>
-            </motion.form>
-
-            {pincodeReady && (liveShipping || ratesLoading || ratesError) && (
-              <section
                 className="rounded-4xl bg-surface/90 p-6 shadow-soft sm:p-8 hairline"
                 aria-label="Delivery options"
               >
@@ -459,7 +447,12 @@ export default function CheckoutPage() {
                   How should we ship it?
                 </h2>
 
-                {ratesLoading ? (
+                {!pincodeReady ? (
+                  <p className="mt-4 flex items-start gap-2.5 rounded-3xl bg-lavender-50 px-4 py-3.5 text-sm text-ink-700">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-lavender-500" strokeWidth={2.4} />
+                    Enter your PIN code above and we will pull live courier rates for your parcel.
+                  </p>
+                ) : ratesLoading ? (
                   <div className="mt-5 space-y-3" role="status" aria-label="Loading delivery options">
                     <Skeleton className="h-16 w-full rounded-3xl" />
                     <Skeleton className="h-16 w-full rounded-3xl" />
@@ -476,6 +469,11 @@ export default function CheckoutPage() {
                       re-check instantly.
                     </span>
                   </div>
+                ) : !liveShipping || options.length === 0 ? (
+                  <p className="mt-4 flex items-start gap-2.5 rounded-3xl bg-mint-100/70 px-4 py-3.5 text-sm text-ink-700">
+                    <Truck className="mt-0.5 h-4 w-4 shrink-0 text-mint-400" strokeWidth={2.4} />
+                    Delivery is on us for this order.
+                  </p>
                 ) : (
                   <>
                     <p className="mt-1.5 text-sm text-muted">
@@ -532,8 +530,19 @@ export default function CheckoutPage() {
                     </ul>
                   </>
                 )}
-              </section>
-            )}
+              </motion.section>
+
+              <motion.div variants={fadeUp}>
+                <Button type="submit" loading={loading} size="lg" className="w-full" disabled={unserviceable}>
+                  <CreditCard className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.3} />
+                  {loading ? "Opening Razorpay" : `Pay ${formatPrice(total)}`}
+                </Button>
+                <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-faint">
+                  <Lock className="h-3.5 w-3.5" strokeWidth={2.4} />
+                  Cards, UPI, wallets and net banking, all handled by Razorpay.
+                </p>
+              </motion.div>
+            </motion.form>
           </div>
 
           <aside className="space-y-4 lg:sticky lg:top-28">
