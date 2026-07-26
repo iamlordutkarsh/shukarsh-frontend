@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Check, ChevronDown, Package, RefreshCw, TriangleAlert, Truck } from "lucide-react";
+import { Check, ChevronDown, Mail, MapPin, Package, Phone, RefreshCw, TriangleAlert, Truck } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { ShippingDrawer } from "../../../components/admin/ShippingDrawer";
 import { Button } from "../../../components/ui/Button";
@@ -71,6 +71,13 @@ function shippingLineOf(order: AdminOrder) {
   const address = order.shippingAddress;
   if (!address) return null;
   const parts = [address.city, address.state, address.zip].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
+function fullAddressOf(order: AdminOrder) {
+  const address = order.shippingAddress;
+  if (!address) return null;
+  const parts = [address.line1, address.line2, address.city, address.state, address.zip].filter(Boolean);
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
@@ -482,6 +489,35 @@ export default function AdminOrdersPage() {
                       className="overflow-hidden"
                     >
                       <div className="border-t border-line px-5 pb-5 pt-4">
+                        {/* Who and where, so the packer does not have to open the
+                            shipping drawer just to read an address. */}
+                        <div className="mb-4 rounded-3xl bg-lavender-50/60 p-4">
+                          <h3 className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint">
+                            Deliver to
+                          </h3>
+                          <p className="mt-2 text-sm font-semibold text-ink">
+                            {order.customerName ?? order.shippingAddress?.name ?? "Guest checkout"}
+                          </p>
+                          <div className="mt-1.5 space-y-1 text-xs text-muted">
+                            {(order.customerPhone || order.shippingAddress?.phone) && (
+                              <p className="flex items-center gap-1.5">
+                                <Phone className="h-3 w-3 shrink-0" strokeWidth={2.4} />
+                                {order.customerPhone ?? order.shippingAddress?.phone}
+                              </p>
+                            )}
+                            {customer && (
+                              <p className="flex items-center gap-1.5 break-all">
+                                <Mail className="h-3 w-3 shrink-0" strokeWidth={2.4} />
+                                {customer}
+                              </p>
+                            )}
+                            <p className="flex items-start gap-1.5 leading-relaxed">
+                              <MapPin className="mt-0.5 h-3 w-3 shrink-0" strokeWidth={2.4} />
+                              <span>{fullAddressOf(order) ?? "No delivery address on this order"}</span>
+                            </p>
+                          </div>
+                        </div>
+
                         <ul className="space-y-3">
                           {order.items.map((item) => {
                             const image = item.product?.images?.[0];
