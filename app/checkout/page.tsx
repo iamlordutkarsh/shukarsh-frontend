@@ -15,7 +15,7 @@ import {
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useCart } from "../../lib/cart";
-import { INDIAN_STATES, canonicalState } from "../../lib/constants";
+import { INDIAN_STATES, ORDER_PLACED_KEY, canonicalState } from "../../lib/constants";
 import { fadeUp, staggerParent } from "../../lib/motion";
 import { cn, displayName, formatPrice } from "../../lib/utils";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
@@ -92,6 +92,7 @@ export default function CheckoutPage() {
   const { user, token } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: displayName(user?.firstName, user?.lastName) ?? "",
@@ -256,15 +257,22 @@ export default function CheckoutPage() {
         description: "Order payment",
         order_id: data.razorpayOrderId,
         handler: async (response) => {
+          // Razorpay's window has closed by now and the pay button already
+          // stopped loading, so without this the customer watches an idle
+          // checkout page while we confirm, with no sign anything happened.
+          setConfirming(true);
+
           try {
-            await verifyRazorpayPayment({
+            const verified = await verifyRazorpayPayment({
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
             });
             clearCart();
+            sessionStorage.setItem(ORDER_PLACED_KEY, verified.orderId);
             router.push("/checkout/success");
           } catch (verifyError) {
+            setConfirming(false);
             setError(verifyError instanceof Error ? verifyError.message : "Payment verification failed");
           }
         },
@@ -299,6 +307,24 @@ export default function CheckoutPage() {
   return (
     <div className="relative pb-20 pt-10">
       <FloatingDecor className="h-[24rem] opacity-60" />
+
+      {confirming && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 grid place-items-center bg-canvas/80 backdrop-blur-sm"
+        >
+          <div className="flex flex-col items-center gap-4 rounded-4xl bg-surface/95 px-10 py-8 text-center shadow-lift hairline">
+            <span className="h-8 w-8 animate-spin rounded-full border-[3px] border-lavender-200 border-t-lavender-500" />
+            <span className="text-sm font-semibold text-ink">Confirming your payment</span>
+            <span className="max-w-[16rem] text-xs leading-relaxed text-muted">
+              Your money has gone through. Please do not close this tab while we write the order down.
+            </span>
+          </div>
+        </motion.div>
+      )}
 
       <div className="section-shell relative">
         <header className="max-w-2xl">

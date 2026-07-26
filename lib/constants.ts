@@ -52,3 +52,13 @@ export function canonicalState(value: string | null | undefined): string | null 
     INDIAN_STATES.find((state) => state.toLowerCase().replace(/[^a-z&]/g, "") === loose) ?? null
   );
 }
+
+/**
+ * Set the moment a payment is verified, and read by the success page.
+ *
+ * The success screen is a bare "thank you" with no order data, so this is a
+ * correctness guard rather than a security one: without it the page renders
+ * "Payment confirmed" for anyone who types the URL. Session scoped, so it goes
+ * when the tab does, and a refresh still works.
+ */
+export const ORDER_PLACED_KEY = "shukarsh-order-placed";

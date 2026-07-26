@@ -2,12 +2,28 @@
 
 import { ArrowRight, Mail, PackageCheck, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { fadeUp, staggerParent } from "../../../lib/motion";
+import { ORDER_PLACED_KEY } from "../../../lib/constants";
+import { useHydrated } from "../../../lib/use-hydrated";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { ButtonLink } from "../../../components/ui/Button";
 import { Confetti } from "../../../components/ui/Confetti";
 
 export default function CheckoutSuccessPage() {
+  const router = useRouter();
+  const hydrated = useHydrated();
+  const orderId = hydrated ? sessionStorage.getItem(ORDER_PLACED_KEY) : null;
+
+  // Nothing here is worth congratulating someone who has not bought anything,
+  // so an arrival with no verified payment behind it goes back to the shop.
+  useEffect(() => {
+    if (hydrated && !orderId) router.replace("/products");
+  }, [hydrated, orderId, router]);
+
+  if (!orderId) return null;
+
   return (
     <div className="relative overflow-hidden py-20">
       <Confetti />
@@ -46,6 +62,10 @@ export default function CheckoutSuccessPage() {
           <motion.p variants={fadeUp} className="mt-3 text-pretty text-sm leading-relaxed text-muted sm:text-base">
             Your order is in and we are already reaching for the tissue paper. A confirmation lands in your inbox
             in a few minutes.
+          </motion.p>
+
+          <motion.p variants={fadeUp} className="mt-3 font-mono text-xs text-faint">
+            Order #{orderId.slice(0, 8)}
           </motion.p>
 
           <motion.div variants={fadeUp} className="mt-8 flex flex-wrap justify-center gap-3">
