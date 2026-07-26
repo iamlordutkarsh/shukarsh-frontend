@@ -422,22 +422,14 @@ export default function AdminOrdersPage() {
                       {order.paymentStatus.toLowerCase()}
                     </span>
 
-                    <select
-                      aria-label={`Status for order ${order.id.slice(0, 8)}`}
-                      value={order.status}
-                      disabled={savingId === order.id}
-                      onChange={(event) => handleStatus(order, event.target.value)}
+                    <span
                       className={cn(
-                        "h-9 cursor-pointer rounded-full border-0 px-3 text-[0.6875rem] font-bold uppercase tracking-[0.14em] outline-none transition-opacity focus:ring-2 focus:ring-lavender-400 disabled:opacity-50",
+                        "inline-flex items-center rounded-full px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.14em]",
                         statusClasses[order.status] ?? "bg-lavender-100 text-lavender-700"
                       )}
                     >
-                      {ORDER_STATUSES.map((status) => (
-                        <option key={status} value={status} className="bg-surface text-ink">
-                          {status.toLowerCase()}
-                        </option>
-                      ))}
-                    </select>
+                      {order.status.toLowerCase()}
+                    </span>
 
                     {awaitingApproval ? (
                       <>
@@ -519,6 +511,36 @@ export default function AdminOrdersPage() {
                         {order.razorpayPaymentId && (
                           <p className="mt-3 font-mono text-xs text-faint">Payment {order.razorpayPaymentId}</p>
                         )}
+
+                        {/*
+                          Approve, Ship and the courier's own scans cover the normal
+                          path. This is only for putting an order right by hand, so
+                          it lives down here rather than looking like a badge.
+                        */}
+                        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+                          <label
+                            htmlFor={`status-${order.id}`}
+                            className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint"
+                          >
+                            Change status manually
+                          </label>
+                          <select
+                            id={`status-${order.id}`}
+                            value={order.status}
+                            disabled={savingId === order.id}
+                            onChange={(event) => handleStatus(order, event.target.value)}
+                            className="h-9 cursor-pointer rounded-2xl border-0 bg-surface px-3 text-sm text-ink ring-1 ring-line focus:ring-2 focus:ring-lavender-400 disabled:opacity-50"
+                          >
+                            {ORDER_STATUSES.map((status) => (
+                              <option key={status} value={status}>
+                                {status.charAt(0) + status.slice(1).toLowerCase()}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="text-xs text-muted">
+                            Only for fixing an order the courier got wrong.
+                          </span>
+                        </div>
                       </div>
                     </motion.div>
                   )}
