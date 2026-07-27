@@ -332,6 +332,12 @@ export default function OrderDetailPage() {
               <span>Items</span>
               <span className="font-semibold text-ink">{formatPrice(order.itemsTotal)}</span>
             </div>
+            {order.discountTotal > 0 && (
+              <div className="flex justify-between text-mint-400">
+                <span>Discount{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                <span className="font-semibold">−{formatPrice(order.discountTotal)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-muted">
               <span>Shipping</span>
               <span className="font-semibold text-ink">
@@ -342,6 +348,14 @@ export default function OrderDetailPage() {
               <span className="text-sm text-muted">Total paid</span>
               <span className="text-lg font-bold text-ink">{formatPrice(order.totalAmount)}</span>
             </div>
+            {order.taxTotal > 0 && (
+              <p className="text-xs text-faint">
+                Includes GST {formatPrice(order.taxTotal)}
+                {order.igstTotal > 0
+                  ? " (IGST)"
+                  : ` (CGST ${formatPrice(order.cgstTotal)} + SGST ${formatPrice(order.sgstTotal)})`}
+              </p>
+            )}
           </div>
         </motion.section>
 

@@ -3,14 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CreditCard, Lock, MapPin, ShoppingBag, Star, Truck, TriangleAlert } from "lucide-react";
+import { BadgePercent, CreditCard, Lock, MapPin, ShoppingBag, Star, Truck, TriangleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createRazorpayOrder,
+  getOrderQuote,
   getShippingRates,
   lookupPincode,
   verifyRazorpayPayment,
+  type OrderQuote,
   type ShippingRates,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -189,6 +191,83 @@ export default function CheckoutPage() {
   const total = totalPrice + shippingAmount;
   const unserviceable = liveShipping && rates !== null && !rates.serviceable;
 
+  /**
+   * The GST already sitting inside the total, worked out by the same server
+   * code that will charge it. Prices are MRP so this never moves the total; it
+   * only says how much of it is tax, which an Indian invoice has to state.
+   */
+  const courierIdForQuote = selectedCourier?.courierId ?? null;
+  const [couponInput, setCouponInput] = useState("");
+  /** The code we are actually pricing against, only set once it is submitted. */
+  const [couponCode, setCouponCode] = useState("");
+  const [couponPending, setCouponPending] = useState(false);
+
+  const quoteFor = `${quoteKey}|${form.state}|${courierIdForQuote ?? ""}|${couponCode}`;
+  const [quoted, setQuoted] = useState<{ key: string; data: OrderQuote } | null>(null);
+
+  useEffect(() => {
+    if (lineItems.length === 0) return;
+
+    const key = quoteFor;
+    let active = true;
+
+    const timer = setTimeout(() => {
+      getOrderQuote(
+        {
+          items: lineItems,
+          ...(pincodeReady ? { pincode: form.zip } : {}),
+          ...(form.state ? { state: form.state } : {}),
+          ...(courierIdForQuote ? { courierId: courierIdForQuote } : {}),
+          ...(couponCode ? { couponCode } : {}),
+          ...(form.email ? { email: form.email } : {}),
+        },
+        token || undefined
+      )
+        .then((data) => {
+          if (active) setQuoted({ key, data });
+        })
+        .catch(() => {
+          // The bag still totals up without it, so a failed quote just hides
+          // the GST line rather than blocking checkout.
+          if (active) setQuoted(null);
+        })
+        .finally(() => {
+          if (active) setCouponPending(false);
+        });
+    }, 450);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [quoteFor, lineItems, pincodeReady, form.zip, form.state, form.email, courierIdForQuote, couponCode, token]);
+
+  const priced = quoted?.key === quoteFor ? quoted.data : null;
+  const tax = priced?.tax ?? null;
+  const showTax = tax?.enabled === true && tax.total > 0;
+  const appliedCoupon = priced?.coupon ?? null;
+  const couponError = priced?.couponError ?? null;
+
+  /**
+   * The server is the one that knows what a code is worth, so applying one is
+   * just re-pricing the bag with it attached.
+   */
+  const applyCode = () => {
+    const next = couponInput.trim().toUpperCase();
+    if (!next || next === couponCode) return;
+    setCouponPending(true);
+    setCouponCode(next);
+  };
+
+  const removeCode = () => {
+    setCouponInput("");
+    setCouponCode("");
+  };
+
+  const discount = priced?.discountTotal ?? 0;
+  // Until a quote settles, the locally summed total is the honest thing to show.
+  const displayTotal = priced ? priced.totalAmount : total;
+
   if (items.length === 0) {
     return (
       <div className="section-shell py-20">
@@ -243,6 +322,7 @@ export default function CheckoutPage() {
           },
           email: form.email,
           ...(selectedCourier ? { courierId: selectedCourier.courierId } : {}),
+          ...(couponCode ? { couponCode } : {}),
         },
         token || undefined
       );
@@ -561,7 +641,7 @@ export default function CheckoutPage() {
               <motion.div variants={fadeUp}>
                 <Button type="submit" loading={loading} size="lg" className="w-full" disabled={unserviceable}>
                   <CreditCard className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.3} />
-                  {loading ? "Opening Razorpay" : `Pay ${formatPrice(total)}`}
+                  {loading ? "Opening Razorpay" : `Pay ${formatPrice(displayTotal)}`}
                 </Button>
                 <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-faint">
                   <Lock className="h-3.5 w-3.5" strokeWidth={2.4} />
@@ -599,22 +679,95 @@ export default function CheckoutPage() {
                 ))}
               </ul>
 
+              <div className="mt-5 border-t border-line pt-4">
+                <label htmlFor="coupon" className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                  Have a code?
+                </label>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    id="coupon"
+                    value={couponInput}
+                    onChange={(event) => setCouponInput(event.target.value.toUpperCase())}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        applyCode();
+                      }
+                    }}
+                    placeholder="WELCOME10"
+                    autoCapitalize="characters"
+                    autoComplete="off"
+                    disabled={Boolean(appliedCoupon)}
+                    className="h-11 min-w-0 flex-1 rounded-2xl border-0 bg-surface px-4 text-sm font-semibold uppercase tracking-wide text-ink shadow-soft ring-1 ring-line transition-shadow placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-faint focus:ring-2 focus:ring-lavender-400 disabled:opacity-60"
+                  />
+                  {/*
+                    Clearing has to be offered for a code that was refused too,
+                    not just one that worked, or a rejected code sits in the
+                    quote with no way to take it back out.
+                  */}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={couponCode ? removeCode : applyCode}
+                    loading={couponPending}
+                    disabled={!couponCode && !couponInput.trim()}
+                    className="shrink-0"
+                  >
+                    {couponCode ? "Remove" : "Apply"}
+                  </Button>
+                </div>
+
+                {appliedCoupon && (
+                  <p className="mt-2 flex items-start gap-1.5 text-xs font-semibold text-mint-400">
+                    <BadgePercent className="mt-px h-3.5 w-3.5 shrink-0" strokeWidth={2.6} />
+                    <span className="text-ink-700">
+                      {appliedCoupon.code} applied
+                      {appliedCoupon.description ? ` · ${appliedCoupon.description}` : ""}
+                    </span>
+                  </p>
+                )}
+
+                {couponError && (
+                  <p className="mt-2 text-xs text-rose-500" role="status">
+                    {couponError}
+                  </p>
+                )}
+              </div>
+
               <dl className="mt-5 space-y-2 border-t border-line pt-4 text-sm">
                 <div className="flex justify-between text-muted">
                   <dt>Subtotal</dt>
                   <dd className="font-semibold text-ink">{formatPrice(totalPrice)}</dd>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-mint-400">
+                    <dt>Discount{appliedCoupon ? ` (${appliedCoupon.code})` : ""}</dt>
+                    <dd className="font-semibold">−{formatPrice(discount)}</dd>
+                  </div>
+                )}
                 <div className="flex justify-between text-muted">
                   <dt>Shipping</dt>
-                  {shippingLabel()}
+                  {appliedCoupon?.freeShipping ? (
+                    <dd className="font-semibold text-mint-400">Free</dd>
+                  ) : (
+                    shippingLabel()
+                  )}
                 </div>
-                {selectedCourier && (
+                {selectedCourier && !appliedCoupon?.freeShipping && (
                   <p className="text-xs text-faint">via {selectedCourier.courierName}</p>
                 )}
                 <div className="flex items-baseline justify-between border-t border-line pt-3">
                   <dt className="font-display text-lg text-ink">Total</dt>
-                  <dd className="text-xl font-bold text-ink">{formatPrice(total)}</dd>
+                  <dd className="text-xl font-bold text-ink">{formatPrice(displayTotal)}</dd>
                 </div>
+                {showTax && (
+                  <p className="text-xs text-faint">
+                    Includes GST {formatPrice(tax.total)}
+                    {tax.igst > 0
+                      ? " (IGST)"
+                      : ` (CGST ${formatPrice(tax.cgst)} + SGST ${formatPrice(tax.sgst)})`}
+                  </p>
+                )}
               </dl>
             </div>
 

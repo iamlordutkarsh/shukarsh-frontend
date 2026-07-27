@@ -38,6 +38,7 @@ export default function NewProductPage() {
       breadthCm: Number(form.breadthCm),
       heightCm: Number(form.heightCm),
       hsn: form.hsn.trim(),
+      gstRate: Number(form.gstRate),
     });
   };
 

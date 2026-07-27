@@ -156,6 +156,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 )}
               </div>
 
+              <p className="text-xs text-faint">Inclusive of all taxes</p>
+
               <p className="text-pretty text-[0.9375rem] leading-relaxed text-muted">
                 {product.description || "A little treat, picked for the way it feels in the hand."}
               </p>

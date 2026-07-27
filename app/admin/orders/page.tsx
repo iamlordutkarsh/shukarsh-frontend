@@ -547,6 +547,15 @@ export default function AdminOrdersPage() {
                             <dt className="text-muted">Items</dt>
                             <dd className="font-semibold text-ink">{formatPrice(order.itemsTotal)}</dd>
                           </div>
+                          {order.discountTotal > 0 && (
+                            <div className="flex gap-1.5">
+                              <dt className="text-muted">Discount</dt>
+                              <dd className="font-semibold text-mint-400">
+                                −{formatPrice(order.discountTotal)}
+                                {order.couponCode ? ` · ${order.couponCode}` : ""}
+                              </dd>
+                            </div>
+                          )}
                           <div className="flex gap-1.5">
                             <dt className="text-muted">Shipping</dt>
                             <dd className="font-semibold text-ink">
@@ -554,6 +563,15 @@ export default function AdminOrdersPage() {
                               {order.courierName ? ` · ${order.courierName}` : ""}
                             </dd>
                           </div>
+                          {order.taxTotal > 0 && (
+                            <div className="flex gap-1.5">
+                              <dt className="text-muted">GST inside</dt>
+                              <dd className="font-semibold text-ink">
+                                {formatPrice(order.taxTotal)}
+                                {order.igstTotal > 0 ? " IGST" : " CGST+SGST"}
+                              </dd>
+                            </div>
+                          )}
                         </dl>
 
                         {order.razorpayPaymentId && (

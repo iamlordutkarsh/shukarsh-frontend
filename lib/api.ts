@@ -1,4 +1,14 @@
-import { Category, CourierOption, Order, Product, Shipment, Tracking, User } from "./types";
+import {
+  AppliedCoupon,
+  Category,
+  Coupon,
+  CourierOption,
+  Order,
+  Product,
+  Shipment,
+  Tracking,
+  User,
+} from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -84,6 +94,15 @@ export interface ShippingAddressInput {
   country?: string;
 }
 
+export interface TaxSummary {
+  enabled: boolean;
+  total: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  intraState: boolean;
+}
+
 export interface RazorpayOrderResponse {
   orderId: string;
   razorpayOrderId: string;
@@ -91,9 +110,105 @@ export interface RazorpayOrderResponse {
   currency: string;
   keyId: string;
   itemsTotal: number;
+  discountTotal: number;
   shippingAmount: number;
   totalAmount: number;
   courierName: string | null;
+  coupon: { code: string; discount: number; freeShipping: boolean } | null;
+  tax: TaxSummary;
+}
+
+export interface OrderQuote {
+  itemsTotal: number;
+  discountTotal: number;
+  shippingAmount: number;
+  totalAmount: number;
+  courierId: number | null;
+  courierName: string | null;
+  coupon: AppliedCoupon | null;
+  /** Set when a code was sent but could not be used, with the reason why. */
+  couponError: string | null;
+  tax: TaxSummary & {
+    buckets: { rate: number; taxable: number; tax: number; cgst: number; sgst: number; igst: number }[];
+  };
+}
+
+/**
+ * What this bag costs, priced by the server. The checkout page shows this and
+ * /orders/create charges the same numbers from the same code.
+ */
+export async function getOrderQuote(
+  payload: {
+    items: { productId: string; quantity: number }[];
+    pincode?: string;
+    state?: string;
+    courierId?: number;
+    couponCode?: string;
+    email?: string;
+  },
+  token?: string
+): Promise<OrderQuote> {
+  return fetcher<OrderQuote>("/orders/quote", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+/**
+ * Checks a code against a bag before the customer has entered an address.
+ * Throws with the reason when the code cannot be used.
+ */
+export async function applyCoupon(
+  payload: {
+    code: string;
+    items: { productId: string; quantity: number }[];
+    email?: string;
+  },
+  token?: string
+): Promise<{ ok: true; coupon: AppliedCoupon }> {
+  return fetcher<{ ok: true; coupon: AppliedCoupon }>("/coupons/apply", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function getCoupons(token: string): Promise<{ coupons: Coupon[] }> {
+  return fetcher<{ coupons: Coupon[] }>("/coupons", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+}
+
+export async function createCoupon(token: string, data: Partial<Coupon>): Promise<{ coupon: Coupon }> {
+  return fetcher<{ coupon: Coupon }>("/coupons", {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function updateCoupon(
+  token: string,
+  id: string,
+  data: Partial<Coupon>
+): Promise<{ coupon: Coupon }> {
+  return fetcher<{ coupon: Coupon }>(`/coupons/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function deleteCoupon(
+  token: string,
+  id: string
+): Promise<{ deleted?: boolean; deactivated?: boolean; message?: string }> {
+  return fetcher(`/coupons/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 export async function createRazorpayOrder(
@@ -102,6 +217,7 @@ export async function createRazorpayOrder(
     shippingAddress: ShippingAddressInput;
     email: string;
     courierId?: number;
+    couponCode?: string;
   },
   token?: string
 ): Promise<RazorpayOrderResponse> {

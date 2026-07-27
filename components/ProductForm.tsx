@@ -31,10 +31,14 @@ export interface FormData {
   breadthCm: string;
   heightCm: string;
   hsn: string;
+  gstRate: string;
 }
 
 /** Matches the Prisma defaults so a blank field never blocks a save. */
 const PARCEL_DEFAULTS = { weightKg: "0.5", lengthCm: "15", breadthCm: "12", heightCm: "6" };
+
+/** The slabs GST actually uses. Same list the API validates against. */
+const GST_RATES = ["0", "0.25", "3", "5", "12", "18", "28"];
 
 export default function ProductForm({ categories, product, onSubmit, submitLabel }: ProductFormProps) {
   const router = useRouter();
@@ -56,10 +60,19 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     breadthCm: product?.breadthCm != null ? String(product.breadthCm) : PARCEL_DEFAULTS.breadthCm,
     heightCm: product?.heightCm != null ? String(product.heightCm) : PARCEL_DEFAULTS.heightCm,
     hsn: product?.hsn || "",
+    gstRate: product?.gstRate != null ? String(product.gstRate) : "5",
   });
 
   const priceNumber = Number(form.price);
   const pricePreview = form.price.trim() && Number.isFinite(priceNumber) ? formatPrice(priceNumber) : null;
+
+  /** Price is the MRP, so show how much of it is already tax. */
+  const gstInsidePrice = (() => {
+    const rate = Number(form.gstRate);
+    if (!Number.isFinite(priceNumber) || priceNumber <= 0) return null;
+    if (!Number.isFinite(rate) || rate <= 0) return null;
+    return formatPrice(Math.round((priceNumber - priceNumber / (1 + rate / 100)) * 100) / 100);
+  })();
 
   const volumetricKg = (() => {
     const volume = Number(form.lengthCm) * Number(form.breadthCm) * Number(form.heightCm);
@@ -235,6 +248,28 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
               maxLength={10}
               className={inputClass}
             />
+          </FormField>
+          <FormField
+            label="GST rate"
+            htmlFor={`${uid}-gst`}
+            hint={
+              gstInsidePrice
+                ? `The price is inclusive, so ${gstInsidePrice} of it is GST.`
+                : "The price you set is inclusive of this."
+            }
+          >
+            <select
+              id={`${uid}-gst`}
+              value={form.gstRate}
+              onChange={(e) => setForm({ ...form, gstRate: e.target.value })}
+              className={inputClass}
+            >
+              {GST_RATES.map((rate) => (
+                <option key={rate} value={rate}>
+                  {rate}%
+                </option>
+              ))}
+            </select>
           </FormField>
         </div>
 

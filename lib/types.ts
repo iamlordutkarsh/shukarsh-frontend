@@ -21,6 +21,8 @@ export interface Product {
   breadthCm: number;
   heightCm: number;
   hsn: string | null;
+  /** GST percent already inside `price`, since listed prices are the MRP. */
+  gstRate: number;
   categoryId: string;
   category: Category;
   createdAt: string;
@@ -39,6 +41,9 @@ export interface OrderItem {
   productId: string;
   quantity: number;
   price: number;
+  gstRate: number;
+  taxableAmount: number;
+  taxAmount: number;
   product: Product;
 }
 
@@ -70,7 +75,15 @@ export interface Order {
   paymentStatus: string;
   itemsTotal: number;
   shippingAmount: number;
+  /** totalAmount is itemsTotal - discountTotal + shippingAmount. */
+  discountTotal: number;
+  couponCode?: string | null;
   totalAmount: number;
+  /** GST inside totalAmount, not added to it. */
+  taxTotal: number;
+  cgstTotal: number;
+  sgstTotal: number;
+  igstTotal: number;
   customerEmail?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
@@ -113,6 +126,41 @@ export interface Tracking {
   etd: string | null;
   deliveredAt: string | null;
   events: TrackingEvent[];
+}
+
+export type CouponType = "PERCENT" | "FLAT" | "FREE_SHIPPING";
+
+export interface Coupon {
+  id: string;
+  code: string;
+  description: string | null;
+  type: CouponType;
+  value: number;
+  maxDiscount: number | null;
+  minOrderValue: number;
+  usageLimit: number | null;
+  perUserLimit: number | null;
+  usageCount: number;
+  firstOrderOnly: boolean;
+  startsAt: string | null;
+  expiresAt: string | null;
+  isActive: boolean;
+  /** Empty for a coupon that covers the whole catalogue. */
+  categoryIds: string[];
+  productIds: string[];
+  /** The targeted products with their names, for showing what is selected. */
+  products: { id: string; name: string }[];
+  redemptionCount: number;
+  createdAt: string;
+}
+
+/** A coupon as it looks once it has been applied to a bag. */
+export interface AppliedCoupon {
+  code: string;
+  type: CouponType;
+  description: string | null;
+  discount: number;
+  freeShipping: boolean;
 }
 
 export interface CartItem {
