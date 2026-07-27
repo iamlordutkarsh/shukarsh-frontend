@@ -99,7 +99,8 @@ export function ProductCard({ product, priority = false, className }: ProductCar
               className="absolute inset-0 bg-gradient-to-t from-ink-900/35 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
             />
 
-            <div className="absolute left-3 top-3 z-20 flex flex-col items-start gap-1.5">
+            {/* Decorative only, so it must not sit in front of the card link. */}
+            <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-col items-start gap-1.5">
               {discount !== null && (
                 <span className="rounded-full bg-gradient-to-r from-blush-400 to-peach-300 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-wider text-white shadow-soft">
                   {discount}% off
@@ -112,14 +113,21 @@ export function ProductCard({ product, priority = false, className }: ProductCar
               )}
             </div>
 
-            <div className="absolute right-3 top-3 z-20 flex flex-col gap-2">
-              <WishlistButton product={product} />
+            {/*
+              These sit above the full-card link, so anything hidden here has to
+              be unclickable as well as invisible. opacity-0 alone left the quick
+              view button swallowing taps aimed at the product page.
+            */}
+            <div className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col gap-2">
+              <span className="pointer-events-auto">
+                <WishlistButton product={product} />
+              </span>
               <motion.button
                 type="button"
                 onClick={() => setQuickView(true)}
                 aria-label={`Quick view ${product.name}`}
                 whileTap={reduced ? undefined : { scale: 0.86 }}
-                className="grid h-10 w-10 place-items-center rounded-full bg-surface/90 text-ink shadow-soft backdrop-blur transition-all duration-300 hover:text-lavender-600 sm:translate-x-2 sm:opacity-0 sm:group-hover:translate-x-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-x-0 sm:group-focus-within:opacity-100"
+                className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-surface/90 text-ink shadow-soft backdrop-blur transition-all duration-300 hover:text-lavender-600 sm:pointer-events-none sm:translate-x-2 sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-x-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-x-0 sm:group-focus-within:opacity-100"
               >
                 <Eye className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
               </motion.button>
@@ -130,7 +138,7 @@ export function ProductCard({ product, priority = false, className }: ProductCar
                 type="button"
                 onClick={handleQuickAdd}
                 whileTap={reduced ? undefined : { scale: 0.96 }}
-                className="absolute inset-x-3 bottom-3 z-20 flex h-11 items-center justify-center gap-2 rounded-full bg-ink-900/90 text-[0.8125rem] font-semibold text-white shadow-lift backdrop-blur transition-all duration-500 ease-[var(--ease-soft)] hover:bg-lavender-600 sm:translate-y-[130%] sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100"
+                className="absolute inset-x-3 bottom-3 z-20 flex h-11 items-center justify-center gap-2 rounded-full bg-ink-900/90 text-[0.8125rem] font-semibold text-white shadow-lift backdrop-blur transition-all duration-500 ease-[var(--ease-soft)] hover:bg-lavender-600 sm:pointer-events-none sm:translate-y-[130%] sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100"
               >
                 <ShoppingBag className="h-4 w-4" strokeWidth={2.3} />
                 Add to bag
