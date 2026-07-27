@@ -8,6 +8,7 @@ import { discountPercent, formatPrice } from "../../../lib/utils";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
 import { AddToCartButton } from "../../../components/product/AddToCartButton";
+import { ShareButton } from "../../../components/product/ShareButton";
 import { ProductCard } from "../../../components/product/ProductCard";
 import { ProductGallery } from "../../../components/product/ProductGallery";
 import { Accordion } from "../../../components/ui/Accordion";
@@ -120,7 +121,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {!soldOut && product.stock > 5 && <Pill tone="mint">In stock</Pill>}
               </div>
 
-              <h1 className="text-hero text-balance">{product.name}</h1>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <h1 className="text-hero text-balance">{product.name}</h1>
+                <ShareButton name={product.name} />
+              </div>
 
               <div className="flex flex-wrap items-baseline gap-3">
                 <span className="text-3xl font-bold tracking-tight text-ink">{formatPrice(product.price)}</span>
