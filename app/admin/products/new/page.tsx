@@ -39,6 +39,8 @@ export default function NewProductPage() {
       heightCm: Number(form.heightCm),
       hsn: form.hsn.trim(),
       gstRate: Number(form.gstRate),
+      // Blank means "not recorded", which is a null rather than a zero cost.
+      costPrice: form.costPrice.trim() ? Number(form.costPrice) : null,
     });
   };
 

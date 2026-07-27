@@ -21,13 +21,18 @@ export default function EditProductPage() {
 
   useEffect(() => {
     if (!slug || typeof slug !== "string") return;
+    // Waiting for the token matters: an anonymous read comes back without the
+    // cost price, and the form would then save that blank over the real one.
+    if (!token) return;
 
-    Promise.all([getProduct(slug).catch(() => null), getCategories()]).then(([productData, categoriesData]) => {
-      setProduct(productData?.product || null);
-      setCategories(categoriesData.categories);
-      setLoading(false);
-    });
-  }, [slug]);
+    Promise.all([getProduct(slug, token).catch(() => null), getCategories()]).then(
+      ([productData, categoriesData]) => {
+        setProduct(productData?.product || null);
+        setCategories(categoriesData.categories);
+        setLoading(false);
+      }
+    );
+  }, [slug, token]);
 
   const handleSubmit = async (form: FormData) => {
     if (!token || !product) throw new Error("Not authenticated");
@@ -48,6 +53,8 @@ export default function EditProductPage() {
       heightCm: Number(form.heightCm),
       hsn: form.hsn.trim(),
       gstRate: Number(form.gstRate),
+      // Blank means "not recorded", which is a null rather than a zero cost.
+      costPrice: form.costPrice.trim() ? Number(form.costPrice) : null,
     });
   };
 

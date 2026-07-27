@@ -23,6 +23,11 @@ export interface Product {
   hsn: string | null;
   /** GST percent already inside `price`, since listed prices are the MRP. */
   gstRate: number;
+  /**
+   * Net of GST. Only present on admin responses; the public catalogue strips
+   * it, so treat undefined as "not visible to me" rather than "not set".
+   */
+  costPrice?: number | null;
   categoryId: string;
   category: Category;
   createdAt: string;

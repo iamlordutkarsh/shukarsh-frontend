@@ -52,8 +52,21 @@ export async function getProducts(params?: { categoryId?: string; search?: strin
   return fetcher<{ products: Product[]; pagination: { page: number; limit: number; total: number; pages: number } }>(`/products${query}`, { next: { revalidate: 60 } });
 }
 
-export async function getProduct(slug: string): Promise<{ product: Product }> {
-  return fetcher<{ product: Product }>(`/products/${slug}`, { next: { revalidate: 60 } });
+/**
+ * Pass a token when an admin needs the whole record. Cost price is stripped
+ * from the anonymous response, so the edit form has to ask as itself or it
+ * would load a blank cost and wipe the real one on save.
+ *
+ * An authenticated read is never cached: the shared cache is keyed on the URL,
+ * so a stored admin response could otherwise be handed to a shopper.
+ */
+export async function getProduct(slug: string, token?: string): Promise<{ product: Product }> {
+  return fetcher<{ product: Product }>(
+    `/products/${slug}`,
+    token
+      ? { cache: "no-store", headers: { Authorization: `Bearer ${token}` } }
+      : { next: { revalidate: 60 } }
+  );
 }
 
 export async function login(email: string, password: string): Promise<{ user: User; token: string }> {

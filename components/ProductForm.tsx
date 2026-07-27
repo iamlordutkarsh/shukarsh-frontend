@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Category, Product } from "../lib/types";
-import { formatPrice, round2 } from "../lib/utils";
+import { cn, formatPrice, round2 } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
@@ -32,6 +32,7 @@ export interface FormData {
   heightCm: string;
   hsn: string;
   gstRate: string;
+  costPrice: string;
 }
 
 /** Matches the Prisma defaults so a blank field never blocks a save. */
@@ -61,6 +62,7 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     heightCm: product?.heightCm != null ? String(product.heightCm) : PARCEL_DEFAULTS.heightCm,
     hsn: product?.hsn || "",
     gstRate: product?.gstRate != null ? String(product.gstRate) : "5",
+    costPrice: product?.costPrice != null ? String(product.costPrice) : "",
   });
 
   const priceNumber = Number(form.price);
@@ -80,13 +82,31 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     const tax = rate > 0 ? round2(price - price / (1 + rate / 100)) : 0;
     const half = round2(tax / 2);
 
+    const taxable = round2(price - tax);
+
+    /**
+     * Margin is measured against the taxable value rather than the price,
+     * because the GST inside the price is collected on the government's behalf
+     * and was never ours. Cost is held net of GST for the mirror-image reason:
+     * input tax credit gives back the tax paid to a supplier.
+     */
+    const cost = Number(form.costPrice);
+    const margin =
+      form.costPrice.trim() && Number.isFinite(cost) && cost >= 0
+        ? {
+            cost: round2(cost),
+            amount: round2(taxable - cost),
+            percent: taxable > 0 ? Math.round(((taxable - cost) / taxable) * 1000) / 10 : 0,
+          }
+        : null;
+
     const compare = Number(form.comparePrice);
     const saving =
       form.comparePrice.trim() && Number.isFinite(compare) && compare > price
         ? { amount: round2(compare - price), percent: Math.round(((compare - price) / compare) * 100) }
         : null;
 
-    return { price, rate, tax, half, taxable: round2(price - tax), saving };
+    return { price, rate, tax, half, taxable, margin, saving };
   })();
 
   const volumetricKg = (() => {
@@ -315,20 +335,38 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
           </FormField>
         </div>
 
-        <FormField label="GST rate" htmlFor={`${uid}-gst`} hint="The slab this product falls under.">
-          <select
-            id={`${uid}-gst`}
-            value={form.gstRate}
-            onChange={(e) => setForm({ ...form, gstRate: e.target.value })}
-            className={inputClass}
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField label="GST rate" htmlFor={`${uid}-gst`} hint="The slab this product falls under.">
+            <select
+              id={`${uid}-gst`}
+              value={form.gstRate}
+              onChange={(e) => setForm({ ...form, gstRate: e.target.value })}
+              className={inputClass}
+            >
+              {GST_RATES.map((rate) => (
+                <option key={rate} value={rate}>
+                  {rate}%
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField
+            label="Cost price"
+            htmlFor={`${uid}-cost`}
+            hint="What you pay for it, before GST. Never shown to customers."
           >
-            {GST_RATES.map((rate) => (
-              <option key={rate} value={rate}>
-                {rate}%
-              </option>
-            ))}
-          </select>
-        </FormField>
+            <input
+              id={`${uid}-cost`}
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.costPrice}
+              onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+              placeholder="Optional"
+              className={inputClass}
+            />
+          </FormField>
+        </div>
 
         {breakdown && (
           <div className="rounded-2xl bg-surface-soft px-4 py-3.5">
@@ -349,7 +387,36 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
                 <dt className="font-semibold text-ink">Customer pays</dt>
                 <dd className="font-bold text-ink">{formatPrice(breakdown.price)}</dd>
               </div>
+
+              {breakdown.margin && (
+                <>
+                  <div className="flex justify-between pt-1.5">
+                    <dt className="text-muted">Cost</dt>
+                    <dd className="font-semibold text-ink">−{formatPrice(breakdown.margin.cost)}</dd>
+                  </div>
+                  <div className="flex justify-between border-t border-line pt-1.5">
+                    <dt className="font-semibold text-ink">Margin</dt>
+                    <dd
+                      className={cn(
+                        "font-bold",
+                        breakdown.margin.amount > 0 ? "text-mint-400" : "text-rose-500"
+                      )}
+                    >
+                      {formatPrice(breakdown.margin.amount)}
+                      <span className="ml-1.5 text-xs font-semibold">
+                        {breakdown.margin.percent}%
+                      </span>
+                    </dd>
+                  </div>
+                </>
+              )}
             </dl>
+
+            {breakdown.margin && breakdown.margin.amount <= 0 && (
+              <p className="mt-3 text-xs font-semibold leading-relaxed text-rose-500">
+                This sells at a loss before you have paid for delivery or the payment gateway.
+              </p>
+            )}
 
             {breakdown.tax > 0 && (
               <p className="mt-3 text-xs leading-relaxed text-muted">
