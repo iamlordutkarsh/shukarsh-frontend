@@ -10,6 +10,7 @@ import type { Order } from "../../lib/types";
 import { displayName, initialsOf } from "../../lib/utils";
 import { useWishlist } from "../../lib/wishlist";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
+import { ChangePassword } from "../../components/account/ChangePassword";
 import { OrderCard } from "../../components/orders/OrderCard";
 import { Button, ButtonLink } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -120,6 +121,9 @@ export default function ProfilePage() {
                     <ArrowRight className="ml-auto h-3.5 w-3.5 text-faint" strokeWidth={2.4} />
                   </Link>
                 )}
+                <div className="rounded-2xl px-3 py-2.5">
+                  <ChangePassword />
+                </div>
                 <Button variant="ghost" size="sm" onClick={logout} className="w-full justify-start px-3">
                   <LogOut className="h-4 w-4" strokeWidth={2.4} />
                   Sign out
