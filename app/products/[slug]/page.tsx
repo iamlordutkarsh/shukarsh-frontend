@@ -9,6 +9,7 @@ import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
 import { AddToCartButton } from "../../../components/product/AddToCartButton";
 import { ShareButton } from "../../../components/product/ShareButton";
+import { DeliveryCheck } from "../../../components/product/DeliveryCheck";
 import { ProductCard } from "../../../components/product/ProductCard";
 import { ProductGallery } from "../../../components/product/ProductGallery";
 import { Accordion } from "../../../components/ui/Accordion";
@@ -72,6 +73,23 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const comparePrice = product.comparePrice;
   const discount = discountPercent(product.price, comparePrice);
   const soldOut = product.stock <= 0;
+
+  // Only what this product actually carries. A spec table full of "—" reads as
+  // missing data rather than detail, so blank fields are dropped entirely.
+  const dimensions = [product.lengthCm, product.breadthCm, product.heightCm].every(Boolean)
+    ? `${product.lengthCm} × ${product.breadthCm} × ${product.heightCm} cm`
+    : null;
+
+  const specs = [
+    { label: "Category", value: product.category.name },
+    // Short and stable, like an order number. Slicing the slug produced codes
+    // cut off mid-word, which reads as a bug rather than an identifier.
+    { label: "Item code", value: product.id.slice(0, 8).toUpperCase() },
+    dimensions ? { label: "Dimensions", value: dimensions } : null,
+    product.weightKg ? { label: "Weight", value: `${product.weightKg} kg` } : null,
+    { label: "Availability", value: soldOut ? "Out of stock" : `${product.stock} in stock` },
+    product.hsn ? { label: "HSN", value: product.hsn } : null,
+  ].filter(Boolean) as { label: string; value: string }[];
 
   return (
     <div className="relative pb-20 pt-8">
@@ -162,11 +180,22 @@ export default async function ProductPage({ params }: ProductPageProps) {
               ))}
             </ul>
 
+            <DeliveryCheck productId={product.id} />
+
             <Accordion
               items={[
                 {
-                  title: "Description",
-                  content: product.description || "Details for this piece are on their way.",
+                  title: "Product details",
+                  content: (
+                    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                      {specs.map(({ label, value }) => (
+                        <div key={label} className="flex justify-between gap-3 border-b border-line pb-2">
+                          <dt className="text-muted">{label}</dt>
+                          <dd className="text-right font-semibold text-ink">{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ),
                 },
                 {
                   title: "Shipping",
