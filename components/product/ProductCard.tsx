@@ -119,15 +119,13 @@ export function ProductCard({ product, priority = false, className }: ProductCar
               view button swallowing taps aimed at the product page.
             */}
             <div className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col gap-2">
-              <span className="pointer-events-auto">
-                <WishlistButton product={product} />
-              </span>
+              <WishlistButton product={product} className="pointer-events-auto" />
               <motion.button
                 type="button"
                 onClick={() => setQuickView(true)}
                 aria-label={`Quick view ${product.name}`}
                 whileTap={reduced ? undefined : { scale: 0.86 }}
-                className="pointer-events-auto grid h-10 w-10 place-items-center rounded-full bg-surface/90 text-ink shadow-soft backdrop-blur transition-all duration-300 hover:text-lavender-600 sm:pointer-events-none sm:translate-x-2 sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-x-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-x-0 sm:group-focus-within:opacity-100"
+                className="pointer-events-auto hidden h-10 w-10 place-items-center rounded-full bg-surface/90 text-ink shadow-soft backdrop-blur transition-all duration-300 hover:text-lavender-600 sm:pointer-events-none sm:grid sm:translate-x-2 sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-x-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-x-0 sm:group-focus-within:opacity-100"
               >
                 <Eye className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
               </motion.button>
