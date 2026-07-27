@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Category, Product } from "../lib/types";
-import { formatPrice } from "../lib/utils";
+import { formatPrice, round2 } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
@@ -66,12 +66,27 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
   const priceNumber = Number(form.price);
   const pricePreview = form.price.trim() && Number.isFinite(priceNumber) ? formatPrice(priceNumber) : null;
 
-  /** Price is the MRP, so show how much of it is already tax. */
-  const gstInsidePrice = (() => {
+  /**
+   * The price is the MRP, so this pulls apart what is already inside it. Mirrors
+   * computeTax on the server: round the tax and derive the rest by subtraction,
+   * so the parts always add back up to exactly the price.
+   */
+  const breakdown = (() => {
     const rate = Number(form.gstRate);
     if (!Number.isFinite(priceNumber) || priceNumber <= 0) return null;
-    if (!Number.isFinite(rate) || rate <= 0) return null;
-    return formatPrice(Math.round((priceNumber - priceNumber / (1 + rate / 100)) * 100) / 100);
+    if (!Number.isFinite(rate) || rate < 0) return null;
+
+    const price = round2(priceNumber);
+    const tax = rate > 0 ? round2(price - price / (1 + rate / 100)) : 0;
+    const half = round2(tax / 2);
+
+    const compare = Number(form.comparePrice);
+    const saving =
+      form.comparePrice.trim() && Number.isFinite(compare) && compare > price
+        ? { amount: round2(compare - price), percent: Math.round(((compare - price) / compare) * 100) }
+        : null;
+
+    return { price, rate, tax, half, taxable: round2(price - tax), saving };
   })();
 
   const volumetricKg = (() => {
@@ -138,34 +153,6 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
             className={textareaClass}
           />
         </FormField>
-      </FormCard>
-
-      <FormCard title="Pricing" description="Compare price is optional and renders as a strike-through.">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <FormField label="Price" htmlFor={`${uid}-price`} hint={pricePreview ? `Shows as ${pricePreview}` : undefined}>
-            <input
-              id={`${uid}-price`}
-              required
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              className={inputClass}
-            />
-          </FormField>
-          <FormField label="Compare price" htmlFor={`${uid}-compare-price`}>
-            <input
-              id={`${uid}-compare-price`}
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.comparePrice}
-              onChange={(e) => setForm({ ...form, comparePrice: e.target.value })}
-              className={inputClass}
-            />
-          </FormField>
-        </div>
       </FormCard>
 
       <FormCard title="Inventory" description="Stock and shelf placement.">
@@ -249,28 +236,6 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
               className={inputClass}
             />
           </FormField>
-          <FormField
-            label="GST rate"
-            htmlFor={`${uid}-gst`}
-            hint={
-              gstInsidePrice
-                ? `The price is inclusive, so ${gstInsidePrice} of it is GST.`
-                : "The price you set is inclusive of this."
-            }
-          >
-            <select
-              id={`${uid}-gst`}
-              value={form.gstRate}
-              onChange={(e) => setForm({ ...form, gstRate: e.target.value })}
-              className={inputClass}
-            >
-              {GST_RATES.map((rate) => (
-                <option key={rate} value={rate}>
-                  {rate}%
-                </option>
-              ))}
-            </select>
-          </FormField>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-3">
@@ -314,6 +279,94 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
             />
           </FormField>
         </div>
+      </FormCard>
+
+      <FormCard
+        title="Pricing"
+        description="The price is what the customer pays. GST is already inside it, not added at checkout."
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField label="Price" htmlFor={`${uid}-price`} hint={pricePreview ? `Shows as ${pricePreview}` : undefined}>
+            <input
+              id={`${uid}-price`}
+              required
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+          <FormField
+            label="Compare price"
+            htmlFor={`${uid}-compare-price`}
+            hint="Optional. Renders as a strike-through."
+          >
+            <input
+              id={`${uid}-compare-price`}
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.comparePrice}
+              onChange={(e) => setForm({ ...form, comparePrice: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+        </div>
+
+        <FormField label="GST rate" htmlFor={`${uid}-gst`} hint="The slab this product falls under.">
+          <select
+            id={`${uid}-gst`}
+            value={form.gstRate}
+            onChange={(e) => setForm({ ...form, gstRate: e.target.value })}
+            className={inputClass}
+          >
+            {GST_RATES.map((rate) => (
+              <option key={rate} value={rate}>
+                {rate}%
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        {breakdown && (
+          <div className="rounded-2xl bg-surface-soft px-4 py-3.5">
+            <p className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint">
+              What ₹{breakdown.price.toLocaleString("en-IN")} breaks down to
+            </p>
+
+            <dl className="mt-3 space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted">You keep</dt>
+                <dd className="font-semibold text-ink">{formatPrice(breakdown.taxable)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">GST at {breakdown.rate}%</dt>
+                <dd className="font-semibold text-ink">{formatPrice(breakdown.tax)}</dd>
+              </div>
+              <div className="flex justify-between border-t border-line pt-1.5">
+                <dt className="font-semibold text-ink">Customer pays</dt>
+                <dd className="font-bold text-ink">{formatPrice(breakdown.price)}</dd>
+              </div>
+            </dl>
+
+            {breakdown.tax > 0 && (
+              <p className="mt-3 text-xs leading-relaxed text-muted">
+                That GST splits into CGST {formatPrice(breakdown.half)} + SGST{" "}
+                {formatPrice(breakdown.tax - breakdown.half)} for a buyer in your own state, or goes out
+                as IGST {formatPrice(breakdown.tax)} to anywhere else. Either way the customer pays the
+                same.
+              </p>
+            )}
+
+            {breakdown.saving && (
+              <p className="mt-2 text-xs font-semibold text-mint-400">
+                Shown as {breakdown.saving.percent}% off, saving {formatPrice(breakdown.saving.amount)}.
+              </p>
+            )}
+          </div>
+        )}
       </FormCard>
 
       <FormCard title="Media" description="Upload photos or paste links. The first image becomes the cover.">

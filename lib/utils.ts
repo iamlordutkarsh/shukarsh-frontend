@@ -25,6 +25,11 @@ export function formatPrice(value: number | string, exact = false) {
   return formatter.format(amount);
 }
 
+/** Rounds money to paise. Mirrors round2 in the API so both agree on a total. */
+export function round2(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export function discountPercent(price: number, comparePrice?: number | null) {
   if (!comparePrice || comparePrice <= price) return null;
   return Math.round((1 - price / comparePrice) * 100);
