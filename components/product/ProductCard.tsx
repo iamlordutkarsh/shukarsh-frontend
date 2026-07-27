@@ -62,18 +62,27 @@ export function ProductCard({ product, priority = false, className }: ProductCar
         onPointerMove={handlePointerMove}
         onPointerLeave={resetTilt}
       >
+        {/*
+          The link lives outside the tilting card on purpose. Inside it, the 3D
+          rotation moved the anchor under the cursor between mousedown and
+          mouseup, so the browser fired click on a common ancestor and the link
+          never activated. Opening in a new tab still worked, because that uses
+          the element under the pointer at press time only.
+
+          The card above is pointer-events-none so clicks fall through to this,
+          and each real control re-enables pointer events for itself.
+        */}
+        <Link
+          href={`/products/${product.slug}`}
+          className="absolute inset-0 z-0 rounded-4xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lavender-500"
+        >
+          <span className="sr-only">View {product.name}</span>
+        </Link>
+
         <motion.article
           style={reduced ? undefined : { rotateX, rotateY, transformStyle: "preserve-3d" }}
-          className="relative flex h-full flex-col rounded-4xl bg-surface/85 p-3 shadow-soft transition-shadow duration-500 ease-[var(--ease-soft)] group-hover:shadow-glow"
+          className="pointer-events-none relative z-10 flex h-full flex-col rounded-4xl bg-surface/85 p-3 shadow-soft transition-shadow duration-500 ease-[var(--ease-soft)] group-hover:shadow-glow"
         >
-          {/* Full-card link sits under the interactive controls so markup stays valid. */}
-          <Link
-            href={`/products/${product.slug}`}
-            className="absolute inset-0 z-10 rounded-4xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lavender-500"
-          >
-            <span className="sr-only">View {product.name}</span>
-          </Link>
-
           <div className="relative aspect-4/5 overflow-hidden rounded-3xl bg-lavender-50">
             {image ? (
               <Image
@@ -136,7 +145,7 @@ export function ProductCard({ product, priority = false, className }: ProductCar
                 type="button"
                 onClick={handleQuickAdd}
                 whileTap={reduced ? undefined : { scale: 0.96 }}
-                className="absolute inset-x-3 bottom-3 z-20 flex h-11 items-center justify-center gap-2 rounded-full bg-ink-900/90 text-[0.8125rem] font-semibold text-white shadow-lift backdrop-blur transition-all duration-500 ease-[var(--ease-soft)] hover:bg-lavender-600 sm:pointer-events-none sm:translate-y-[130%] sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100"
+                className="pointer-events-auto absolute inset-x-3 bottom-3 z-20 flex h-11 items-center justify-center gap-2 rounded-full bg-ink-900/90 text-[0.8125rem] font-semibold text-white shadow-lift backdrop-blur transition-all duration-500 ease-[var(--ease-soft)] hover:bg-lavender-600 sm:pointer-events-none sm:translate-y-[130%] sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100"
               >
                 <ShoppingBag className="h-4 w-4" strokeWidth={2.3} />
                 Add to bag
