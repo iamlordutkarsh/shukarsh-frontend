@@ -280,6 +280,20 @@ export async function getOrder(token: string, id: string): Promise<{ order: Orde
   return adminFetcher<{ order: Order }>(`/orders/${id}`, token, { cache: "no-store" });
 }
 
+export async function changePassword(
+  token: string,
+  payload: { currentPassword: string; newPassword: string }
+): Promise<{ message: string }> {
+  return adminFetcher<{ message: string }>("/auth/change-password", token, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function cancelOrder(token: string, id: string): Promise<{ order: Order }> {
+  return adminFetcher<{ order: Order }>(`/orders/${id}/cancel`, token, { method: "POST" });
+}
+
 export async function trackOrder(token: string, id: string): Promise<{ tracking: Tracking | null }> {
   return adminFetcher<{ tracking: Tracking | null }>(`/logistics/orders/${id}/track`, token, { cache: "no-store" });
 }

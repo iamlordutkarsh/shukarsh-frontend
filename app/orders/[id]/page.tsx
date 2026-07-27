@@ -5,15 +5,16 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, CreditCard, ExternalLink, MapPin, Package, Truck } from "lucide-react";
-import { getOrder, trackOrder } from "../../../lib/api";
+import { ArrowLeft, CreditCard, ExternalLink, MapPin, Package, Truck, XCircle } from "lucide-react";
+import { cancelOrder, getOrder, trackOrder } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import type { Order, Tracking } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
 import { fadeUp, staggerParent } from "../../../lib/motion";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
-import { ButtonLink } from "../../../components/ui/Button";
+import { Button, ButtonLink } from "../../../components/ui/Button";
 import { EmptyState } from "../../../components/ui/EmptyState";
+import { useToast } from "../../../components/ui/Toast";
 import { OopsArt } from "../../../components/ui/KawaiiArt";
 import { PastelTile } from "../../../components/ui/PastelTile";
 import { Skeleton, SkeletonText } from "../../../components/ui/Skeleton";
@@ -22,6 +23,7 @@ import { formatEtd, formatEventDate, formatPlacedAt, paymentMeta, statusMeta, st
 export default function OrderDetailPage() {
   const { id } = useParams();
   const { user, token, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const router = useRouter();
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -30,6 +32,32 @@ export default function OrderDetailPage() {
 
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [trackingError, setTrackingError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancel = async () => {
+    if (!token || typeof id !== "string" || !order) return;
+    const units = order.items.reduce((total, line) => total + line.quantity, 0);
+    const confirmed = window.confirm(
+      `Cancel order #${order.id.slice(0, 8)}?\n\n${units} item${units === 1 ? "" : "s"} will be released. ` +
+        "If you have already paid, a refund is issued to your original payment method."
+    );
+    if (!confirmed) return;
+
+    setCancelling(true);
+    try {
+      const data = await cancelOrder(token, id);
+      setOrder(data.order);
+      toast({ title: "Order cancelled", description: "We have called it off for you.", tone: "success" });
+    } catch (error) {
+      toast({
+        title: "Could not cancel",
+        description: error instanceof Error ? error.message : "Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) router.push("/login");
@@ -115,6 +143,9 @@ export default function OrderDetailPage() {
   // Derived rather than a state flag: the fetch is in flight for exactly as
   // long as a tracked parcel has produced neither scans nor an explanation.
   const trackingPending = Boolean(shipment?.awb) && !tracking && !trackingError;
+  // Only while the shop has not started on it. After approval someone is
+  // packing, so calling it off has to go through them.
+  const canCancel = order.status === "PENDING";
 
   return (
     <div className="relative pb-20 pt-10">
@@ -345,6 +376,24 @@ export default function OrderDetailPage() {
             )}
           </section>
         </motion.div>
+
+        {canCancel && (
+          <motion.div variants={fadeUp} className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted">
+              Changed your mind? You can call this off until we start packing it.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCancel}
+              loading={cancelling}
+              className="text-rose-500 hover:bg-rose-50"
+            >
+              <XCircle className="h-4 w-4" strokeWidth={2.4} />
+              Cancel this order
+            </Button>
+          </motion.div>
+        )}
       </motion.div>
     </div>
   );
