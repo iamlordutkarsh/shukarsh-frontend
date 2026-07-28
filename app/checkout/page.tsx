@@ -179,7 +179,6 @@ export default function CheckoutPage() {
   const deliveryLoading = pincodeReady && lineItems.length > 0 && settledQuote === null;
 
   const etaDays = delivery?.etdDays ?? null;
-  const unserviceable = delivery?.enabled === true && !delivery.serviceable;
   const policy = useDeliveryPolicy();
 
   const [couponInput, setCouponInput] = useState("");
@@ -264,6 +263,14 @@ export default function CheckoutPage() {
   };
 
   const discount = priced?.discountTotal ?? 0;
+
+  /**
+   * The priced quote's answer first, because /orders/create enforces that exact
+   * field and will refuse the order on it. The delivery check is the same fact
+   * from the same courier data, just fetched earlier.
+   */
+  const unserviceable =
+    priced?.serviceable === false || (priced == null && delivery?.enabled === true && !delivery.serviceable);
 
   /**
    * The priced quote is the figure being charged, so it wins. The other two are

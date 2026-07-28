@@ -138,6 +138,8 @@ export interface OrderQuote {
   totalAmount: number;
   courierId: number | null;
   courierName: string | null;
+  /** False only when no courier covers the address. Null when it could not be checked. */
+  serviceable: boolean | null;
   coupon: AppliedCoupon | null;
   /** Set when a code was sent but could not be used, with the reason why. */
   couponError: string | null;
