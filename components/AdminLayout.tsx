@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, BadgePercent, LayoutDashboard, Package, ShoppingCart, Tags } from "lucide-react";
+import { ArrowLeft, BadgePercent, LayoutDashboard, Package, RotateCcw, ShoppingCart, Tags } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { cn } from "../lib/utils";
 import { ButtonLink } from "./ui/Button";
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/coupons", label: "Coupons", icon: BadgePercent },
+  { href: "/admin/returns", label: "Returns", icon: RotateCcw },
 ] as const;
 
 interface AdminLayoutProps {
