@@ -148,10 +148,14 @@ export default function AdminCouponsPage() {
   const payload = useMemo(
     () => ({
       code: form.code.trim().toUpperCase(),
-      description: form.description.trim() || undefined,
+      // null, not undefined: JSON.stringify drops undefined, so the PUT would
+      // not carry the key at all and a cleared field would keep its old value.
+      description: form.description.trim() || null,
       type: form.type,
       value: form.type === "FREE_SHIPPING" ? 0 : Number(form.value || 0),
-      maxDiscount: form.maxDiscount ? Number(form.maxDiscount) : undefined,
+      // A cap only means anything on a percent code, and the field is hidden for
+      // the others, so a leftover value must not travel with them.
+      maxDiscount: form.type === "PERCENT" && form.maxDiscount ? Number(form.maxDiscount) : null,
       minOrderValue: form.minOrderValue ? Number(form.minOrderValue) : 0,
       // Blank means no limit, which the API models as null rather than absent.
       usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
