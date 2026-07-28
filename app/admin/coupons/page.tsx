@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { BadgePercent, Pencil, Power, Trash2, X } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { FormField, inputClass, labelClass } from "../../../components/admin/FormField";
@@ -21,6 +21,7 @@ import {
 } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { Category, Coupon, CouponType, Product } from "../../../lib/types";
+import { useClickOutside } from "../../../lib/use-click-outside";
 import { cn, formatPrice } from "../../../lib/utils";
 
 const emptyForm = {
@@ -87,6 +88,12 @@ export default function AdminCouponsPage() {
   const [deleting, setDeleting] = useState(false);
   const [productQuery, setProductQuery] = useState("");
   const [productResults, setProductResults] = useState<Product[]>([]);
+  const productSearchRef = useRef<HTMLDivElement>(null);
+
+  // The results float over the checkboxes below them, so clicking away has to
+  // put them back rather than leaving them parked on top.
+  const closeProductResults = useCallback(() => setProductResults([]), []);
+  useClickOutside(productSearchRef, closeProductResults, productResults.length > 0);
 
   /** Search the catalogue rather than listing it, since it only grows. */
   useEffect(() => {
@@ -487,7 +494,7 @@ export default function AdminCouponsPage() {
                 </ul>
               )}
 
-              <div className="relative">
+              <div ref={productSearchRef} className="relative">
                 <input
                   id={`${uid}-product-search`}
                   value={productQuery}

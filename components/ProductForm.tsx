@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Category, Product } from "../lib/types";
-import { cn, formatPrice, round2 } from "../lib/utils";
+import { cn, discountPercent, formatPrice, round2 } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
@@ -101,10 +101,11 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
         : null;
 
     const compare = Number(form.comparePrice);
+    // The storefront badge comes from this helper, so the preview has to as
+    // well, or the admin is shown a percentage the shopper never sees.
+    const savingPercent = discountPercent(price, compare);
     const saving =
-      form.comparePrice.trim() && Number.isFinite(compare) && compare > price
-        ? { amount: round2(compare - price), percent: Math.round(((compare - price) / compare) * 100) }
-        : null;
+      savingPercent !== null ? { amount: round2(compare - price), percent: savingPercent } : null;
 
     return { price, rate, tax, half, taxable, margin, saving };
   })();
