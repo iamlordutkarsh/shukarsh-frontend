@@ -200,9 +200,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   ),
                 },
                 {
-                  title: "Shipping",
+                  title: "Delivery",
                   content:
-                    "Dispatched within 1-2 working days from India. Enter your PIN code at checkout to see live courier rates and delivery estimates, then track the parcel from your account once it leaves us.",
+                    "Free on every order, dispatched within 1-2 working days from India. Enter your PIN code above for a delivery estimate, then track the parcel from your account once it leaves us.",
                 },
                 {
                   title: "Care & returns",

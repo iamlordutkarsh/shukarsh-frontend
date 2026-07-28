@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ShieldCheck, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCart } from "../../lib/cart";
+import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { easeSoft } from "../../lib/motion";
 import { formatPrice } from "../../lib/utils";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
@@ -17,6 +18,7 @@ import { PastelTile } from "../../components/ui/PastelTile";
 
 export default function CartPage() {
   const { items, updateQuantity, removeFromCart, totalPrice, totalItems } = useCart();
+  const delivery = deliveryFor(totalPrice, useDeliveryPolicy());
 
   return (
     <div className="relative pb-20 pt-10">
@@ -132,12 +134,25 @@ export default function CartPage() {
                     <dd className="font-semibold text-ink">{formatPrice(totalPrice)}</dd>
                   </div>
                   <div className="flex justify-between text-muted">
-                    <dt>Shipping</dt>
-                    <dd className="font-semibold text-faint">Calculated at checkout</dd>
+                    <dt>Delivery</dt>
+                    {!delivery ? (
+                      <dd className="font-semibold text-faint">Calculated at checkout</dd>
+                    ) : delivery.free ? (
+                      <dd className="font-semibold text-mint-400">Free</dd>
+                    ) : (
+                      <dd className="font-semibold text-ink">{formatPrice(delivery.fee)}</dd>
+                    )}
                   </div>
+                  {delivery && delivery.shortfall > 0 && (
+                    <p className="text-xs font-semibold text-lavender-700">
+                      Add {formatPrice(delivery.shortfall)} more and delivery is on us.
+                    </p>
+                  )}
                   <div className="flex items-baseline justify-between border-t border-line pt-3">
                     <dt className="font-display text-lg text-ink">Total</dt>
-                    <dd className="text-xl font-bold text-ink">{formatPrice(totalPrice)}</dd>
+                    <dd className="text-xl font-bold text-ink">
+                      {formatPrice(totalPrice + (delivery?.fee ?? 0))}
+                    </dd>
                   </div>
                 </dl>
 
@@ -156,7 +171,7 @@ export default function CartPage() {
 
               <ul className="space-y-2">
                 {[
-                  { icon: Truck, label: "Live courier rates at checkout" },
+                  { icon: Truck, label: "Free tracked delivery" },
                   { icon: ShieldCheck, label: "Secure payments via Razorpay" },
                 ].map(({ icon: Icon, label }) => (
                   <li

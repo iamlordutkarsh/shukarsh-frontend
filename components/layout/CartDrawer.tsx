@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { BadgePercent, ChevronRight, ShieldCheck, Sparkles, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCart } from "../../lib/cart";
+import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { easeSoft } from "../../lib/motion";
 import { useUI } from "../../lib/ui-store";
 import { formatPrice } from "../../lib/utils";
@@ -50,9 +51,17 @@ export function CartDrawer() {
   }, 0);
   const savings = listTotal - totalPrice;
 
-  /** Shipping off entirely counts as free, same as checkout reads it. */
   const delivery = deliveryQuote?.key === cartKey ? deliveryQuote.rates : null;
-  const freeShipping = delivery !== null && (delivery.enabled === false || delivery.freeShipping);
+
+  /**
+   * Stated from the shop's policy rather than waiting on a PIN code, because the
+   * fee does not depend on where the parcel is going. A quote, once there is one,
+   * is the same figure from the server that will charge it.
+   */
+  const policy = useDeliveryPolicy(open);
+  const fromPolicy = deliveryFor(totalPrice, policy);
+  const deliveryFee = delivery?.shippingAmount ?? fromPolicy?.fee ?? null;
+  const shortfall = delivery?.shortfall ?? fromPolicy?.shortfall ?? 0;
 
   return (
     <Drawer
@@ -218,17 +227,25 @@ export function CartDrawer() {
               </div>
 
               <div className="flex justify-between text-muted">
-                <dt>Shipping</dt>
-                {freeShipping ? (
+                <dt>Delivery</dt>
+                {deliveryFee === null ? (
+                  <dd className="font-semibold text-faint">Calculated at checkout</dd>
+                ) : deliveryFee === 0 ? (
                   <dd className="font-semibold text-mint-400">Free</dd>
                 ) : (
-                  <dd className="font-semibold text-faint">Calculated at checkout</dd>
+                  <dd className="font-semibold text-ink">{formatPrice(deliveryFee)}</dd>
                 )}
               </div>
 
+              {shortfall > 0 && (
+                <p className="text-xs font-semibold text-lavender-700">
+                  Add {formatPrice(shortfall)} more and delivery is on us.
+                </p>
+              )}
+
               <div className="flex items-baseline justify-between border-t border-line pt-2.5">
                 <dt className="font-display text-base text-ink">You pay</dt>
-                <dd className="text-lg font-bold text-ink">{formatPrice(totalPrice)}</dd>
+                <dd className="text-lg font-bold text-ink">{formatPrice(totalPrice + (deliveryFee ?? 0))}</dd>
               </div>
             </dl>
           </section>
