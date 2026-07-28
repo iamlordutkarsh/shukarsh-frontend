@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Trash2, Truck } from "lucide-react";
+import { useMemo, useState } from "react";
+import { BadgePercent, ChevronRight, ShieldCheck, Sparkles, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCart } from "../../lib/cart";
 import { easeSoft } from "../../lib/motion";
@@ -14,11 +15,44 @@ import { EmptyState } from "../ui/EmptyState";
 import { EmptyCartArt } from "../ui/KawaiiArt";
 import { PastelTile } from "../ui/PastelTile";
 import { QuantityStepper } from "../product/QuantityStepper";
+import { BagDeliveryCheck, type BagDeliveryQuote } from "../cart/BagDeliveryCheck";
+
+const TRUST = [
+  { icon: Sparkles, label: "Handpicked pieces" },
+  { icon: ShieldCheck, label: "Secure payments" },
+  { icon: Truck, label: "Tracked delivery" },
+];
 
 export function CartDrawer() {
   const { isOpen, close } = useUI();
   const { items, totalItems, totalPrice, updateQuantity, removeFromCart } = useCart();
   const open = isOpen("cart");
+
+  const [deliveryQuote, setDeliveryQuote] = useState<BagDeliveryQuote | null>(null);
+
+  const lineItems = useMemo(
+    () => items.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
+    [items]
+  );
+  const cartKey = useMemo(
+    () => lineItems.map((line) => `${line.productId}:${line.quantity}`).join(","),
+    [lineItems]
+  );
+
+  /**
+   * What the bag would have cost at list price. Compare price is only a saving
+   * when it is actually above what we charge, so a stale or lower one falls
+   * back to the real price rather than inventing a discount.
+   */
+  const listTotal = items.reduce((sum, { product, quantity }) => {
+    const listed = product.comparePrice && product.comparePrice > product.price ? product.comparePrice : product.price;
+    return sum + listed * quantity;
+  }, 0);
+  const savings = listTotal - totalPrice;
+
+  /** Shipping off entirely counts as free, same as checkout reads it. */
+  const delivery = deliveryQuote?.key === cartKey ? deliveryQuote.rates : null;
+  const freeShipping = delivery !== null && (delivery.enabled === false || delivery.freeShipping);
 
   return (
     <Drawer
@@ -28,33 +62,21 @@ export function CartDrawer() {
       description={totalItems > 0 ? `${totalItems} item${totalItems === 1 ? "" : "s"}` : "Nothing here yet"}
       footer={
         items.length > 0 ? (
-          <div className="space-y-4">
-            <dl className="space-y-1.5 text-sm">
-              <div className="flex justify-between text-muted">
-                <dt>Subtotal</dt>
-                <dd className="font-semibold text-ink">{formatPrice(totalPrice)}</dd>
-              </div>
-              <div className="flex justify-between text-muted">
-                <dt>Shipping</dt>
-                <dd className="font-semibold text-faint">Calculated at checkout</dd>
-              </div>
-              <div className="flex justify-between border-t border-line pt-2 text-base">
-                <dt className="font-display text-ink">Total</dt>
-                <dd className="font-bold text-ink">{formatPrice(totalPrice)}</dd>
-              </div>
-            </dl>
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-tight text-ink">{formatPrice(totalPrice)}</p>
+              <Link
+                href="/cart"
+                onClick={close}
+                className="text-xs font-semibold text-lavender-700 transition-colors hover:text-lavender-600"
+              >
+                View full bag
+              </Link>
+            </div>
 
-            <ButtonLink href="/checkout" size="lg" className="w-full" onClick={close}>
-              Checkout
-              <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
+            <ButtonLink href="/checkout" size="lg" className="shrink-0" onClick={close}>
+              Proceed to buy
             </ButtonLink>
-            <button
-              type="button"
-              onClick={close}
-              className="block w-full text-center text-xs font-semibold text-muted transition-colors hover:text-ink"
-            >
-              Keep shopping
-            </button>
           </div>
         ) : null
       }
@@ -75,11 +97,8 @@ export function CartDrawer() {
           />
         </div>
       ) : (
-        <div className="space-y-5">
-          <p className="flex items-center gap-2 rounded-3xl bg-lavender-50/80 px-4 py-3 text-xs font-semibold text-lavender-700">
-            <Truck className="h-4 w-4 shrink-0" strokeWidth={2.3} />
-            Enter your PIN code at checkout for live courier rates.
-          </p>
+        <div className="space-y-4">
+          <BagDeliveryCheck items={lineItems} cartKey={cartKey} onResult={setDeliveryQuote} />
 
           <ul className="space-y-3">
             <AnimatePresence initial={false}>
@@ -107,13 +126,18 @@ export function CartDrawer() {
 
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex items-start justify-between gap-2">
-                      <Link
-                        href={`/products/${product.slug}`}
-                        onClick={close}
-                        className="line-clamp-2 text-sm font-semibold text-ink hover:text-lavender-700"
-                      >
-                        {product.name}
-                      </Link>
+                      <div className="min-w-0">
+                        <p className="text-[0.625rem] font-bold uppercase tracking-[0.16em] text-lavender-500">
+                          {product.category.name}
+                        </p>
+                        <Link
+                          href={`/products/${product.slug}`}
+                          onClick={close}
+                          className="mt-0.5 line-clamp-2 block text-sm font-semibold text-ink hover:text-lavender-700"
+                        >
+                          {product.name}
+                        </Link>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeFromCart(product.id)}
@@ -123,7 +147,13 @@ export function CartDrawer() {
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={2.3} />
                       </button>
                     </div>
-                    <p className="text-xs text-muted">{product.category.name}</p>
+
+                    {product.stock <= 3 && (
+                      <p className="text-[0.6875rem] font-semibold text-peach-400">
+                        Only {product.stock} left
+                      </p>
+                    )}
+
                     <div className="mt-auto flex items-center justify-between gap-2">
                       <QuantityStepper
                         size="sm"
@@ -141,14 +171,76 @@ export function CartDrawer() {
             </AnimatePresence>
           </ul>
 
+          <p className="flex items-baseline justify-between border-y border-line py-3 text-sm text-muted">
+            You pay
+            <span className="text-base font-bold text-ink">{formatPrice(totalPrice)}</span>
+          </p>
+
+          {/*
+            Codes are priced by the server against a finished order, so the one
+            place that can honestly say what a coupon is worth is checkout.
+          */}
           <Link
-            href="/cart"
+            href="/checkout"
             onClick={close}
-            className="flex items-center justify-center gap-1.5 text-xs font-semibold text-muted transition-colors hover:text-ink"
+            className="flex items-center gap-3 rounded-3xl bg-surface/80 p-4 shadow-soft transition-shadow hover:shadow-lift hairline"
           >
-            View full bag
-            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.4} />
+            <BadgePercent className="h-5 w-5 shrink-0 text-lavender-500" strokeWidth={2.3} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.8125rem] font-bold text-ink">Coupons</span>
+              <span className="block text-xs text-muted">Add a code at checkout and save extra</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-faint" strokeWidth={2.4} />
           </Link>
+
+          <section className="rounded-3xl bg-surface/80 p-4 shadow-soft hairline">
+            <h3 className="text-[0.8125rem] font-bold text-ink">Price summary</h3>
+            <p className="mt-0.5 text-xs text-muted">Prices are inclusive of GST</p>
+
+            <dl className="mt-3 space-y-2 text-sm">
+              <div className="flex justify-between text-muted">
+                <dt>
+                  Bag total ({totalItems} item{totalItems === 1 ? "" : "s"})
+                </dt>
+                <dd className="font-semibold text-ink">{formatPrice(listTotal)}</dd>
+              </div>
+
+              {savings > 0 && (
+                <div className="flex justify-between text-mint-400">
+                  <dt>Discount</dt>
+                  <dd className="font-semibold">−{formatPrice(savings)}</dd>
+                </div>
+              )}
+
+              <div className="flex justify-between text-muted">
+                <dt>Sub total</dt>
+                <dd className="font-semibold text-ink">{formatPrice(totalPrice)}</dd>
+              </div>
+
+              <div className="flex justify-between text-muted">
+                <dt>Shipping</dt>
+                {freeShipping ? (
+                  <dd className="font-semibold text-mint-400">Free</dd>
+                ) : (
+                  <dd className="font-semibold text-faint">Calculated at checkout</dd>
+                )}
+              </div>
+
+              <div className="flex items-baseline justify-between border-t border-line pt-2.5">
+                <dt className="font-display text-base text-ink">You pay</dt>
+                <dd className="text-lg font-bold text-ink">{formatPrice(totalPrice)}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <ul className="grid grid-cols-3 gap-2 rounded-3xl bg-lavender-50/70 px-3 py-3.5">
+            {TRUST.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex flex-col items-center gap-1.5 text-center">
+                <Icon className="h-4 w-4 text-lavender-500" strokeWidth={2.3} />
+                <span className="text-[0.6875rem] font-semibold leading-tight text-ink-700">{label}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </Drawer>
