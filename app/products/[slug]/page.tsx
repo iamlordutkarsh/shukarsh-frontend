@@ -207,7 +207,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 {
                   title: "Care & returns",
                   content:
-                    "Hand wash or wipe clean where relevant. Something not right? Write to hello@shukarsh.com within 7 days of delivery and we will sort it out.",
+                    "Hand wash or wipe clean where relevant. If it arrives damaged or we sent the wrong thing, open a return from your order within 7 days of delivery and we will collect it and put it right.",
                 },
               ]}
             />
