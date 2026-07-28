@@ -99,7 +99,77 @@ export interface Order {
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
   items: OrderItem[];
+  deliveredAt?: string | null;
+  returns?: ReturnRequest[];
+  /** Only on responses that loaded the returns, so undefined means "unknown". */
+  returnWindow?: ReturnWindow;
   createdAt: string;
+}
+
+export type ReturnReason = "DAMAGED" | "WRONG_ITEM";
+export type ReturnOutcome = "REFUND" | "EXCHANGE";
+export type ReturnStatus =
+  | "REQUESTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "RECEIVED"
+  | "COMPLETED"
+  | "WITHDRAWN";
+
+export interface ReturnItem {
+  id: string;
+  orderItemId: string;
+  quantity: number;
+  resellable: boolean | null;
+  product: { id: string; name: string; slug: string; images: string[] } | null;
+}
+
+export interface ReturnRequest {
+  id: string;
+  orderId: string;
+  reason: ReturnReason;
+  outcome: ReturnOutcome;
+  status: ReturnStatus;
+  customerNote: string;
+  adminNote: string | null;
+  refundAmount: number | null;
+  items: ReturnItem[];
+  decidedAt: string | null;
+  receivedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReturnWindow {
+  open: boolean;
+  block:
+    | "NOT_PAID"
+    | "NOT_DELIVERED"
+    | "NO_DELIVERY_DATE"
+    | "WINDOW_CLOSED"
+    | "ALREADY_OPEN"
+    | "NOTHING_LEFT"
+    | null;
+  closesAt: string | null;
+  /** Units still claimable, keyed by order item id. */
+  available: Record<string, number>;
+}
+
+/** A return in the admin queue, with the order context a decision needs. */
+export interface AdminReturn extends ReturnRequest {
+  proposedRefund: number;
+  order: {
+    id: string;
+    status: string;
+    paymentStatus: string;
+    totalAmount: number;
+    deliveredAt: string | null;
+    customerName: string | null;
+    customerEmail: string | null;
+    customerPhone: string | null;
+    razorpayPaymentId: string | null;
+  };
 }
 
 export interface CourierOption {

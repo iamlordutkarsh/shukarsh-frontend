@@ -1,10 +1,15 @@
 import {
+  AdminReturn,
   AppliedCoupon,
   Category,
   Coupon,
   CourierOption,
   Order,
   Product,
+  ReturnOutcome,
+  ReturnReason,
+  ReturnRequest,
+  ReturnStatus,
   Shipment,
   Tracking,
   User,
@@ -440,6 +445,54 @@ export async function cancelOrder(token: string, id: string): Promise<{ order: O
 
 export async function trackOrder(token: string, id: string): Promise<{ tracking: Tracking | null }> {
   return adminFetcher<{ tracking: Tracking | null }>(`/logistics/orders/${id}/track`, token, { cache: "no-store" });
+}
+
+export async function requestReturn(
+  token: string,
+  orderId: string,
+  payload: {
+    reason: ReturnReason;
+    outcome: ReturnOutcome;
+    note: string;
+    items: { orderItemId: string; quantity: number }[];
+  }
+): Promise<{ return: ReturnRequest }> {
+  return adminFetcher<{ return: ReturnRequest }>(`/orders/${orderId}/returns`, token, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function withdrawReturn(
+  token: string,
+  orderId: string,
+  returnId: string
+): Promise<{ return: ReturnRequest }> {
+  return adminFetcher<{ return: ReturnRequest }>(
+    `/orders/${orderId}/returns/${returnId}/withdraw`,
+    token,
+    { method: "POST" }
+  );
+}
+
+export async function getReturns(token: string, status?: ReturnStatus): Promise<{ returns: AdminReturn[] }> {
+  const query = status ? `?status=${status}` : "";
+  return adminFetcher<{ returns: AdminReturn[] }>(`/returns${query}`, token, { cache: "no-store" });
+}
+
+export async function updateReturn(
+  token: string,
+  id: string,
+  payload: {
+    status: "APPROVED" | "REJECTED" | "RECEIVED" | "COMPLETED";
+    adminNote?: string;
+    items?: { orderItemId: string; resellable: boolean }[];
+  }
+): Promise<{ return: AdminReturn }> {
+  return adminFetcher<{ return: AdminReturn }>(`/returns/${id}`, token, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function uploadProductImages(token: string, files: File[]): Promise<{ urls: string[] }> {

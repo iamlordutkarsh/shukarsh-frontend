@@ -10,6 +10,26 @@ export const statusMeta: Record<string, { label: string; icon: typeof Clock; cla
   RETURNED: { label: "Returned", icon: RotateCcw, className: "bg-rose-50 text-rose-500" },
 };
 
+/** Where a return has got to, in words a customer reads rather than our enum. */
+export const returnMeta: Record<string, { label: string; className: string }> = {
+  REQUESTED: { label: "Waiting on us", className: "bg-peach-100 text-peach-400" },
+  APPROVED: { label: "Approved", className: "bg-mint-100 text-mint-400" },
+  REJECTED: { label: "Not accepted", className: "bg-rose-50 text-rose-500" },
+  RECEIVED: { label: "Back with us", className: "bg-lavender-100 text-lavender-700" },
+  COMPLETED: { label: "Settled", className: "bg-mint-100 text-mint-400" },
+  WITHDRAWN: { label: "Withdrawn", className: "bg-lavender-50 text-faint" },
+};
+
+export const returnReasonLabel: Record<string, string> = {
+  DAMAGED: "Arrived damaged",
+  WRONG_ITEM: "Wrong item sent",
+};
+
+export const returnOutcomeLabel: Record<string, string> = {
+  REFUND: "Refund",
+  EXCHANGE: "Replacement",
+};
+
 export const paymentMeta: Record<string, string> = {
   PAID: "text-mint-400",
   PENDING: "text-peach-400",

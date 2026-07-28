@@ -18,6 +18,7 @@ import { useToast } from "../../../components/ui/Toast";
 import { OopsArt } from "../../../components/ui/KawaiiArt";
 import { PastelTile } from "../../../components/ui/PastelTile";
 import { Skeleton, SkeletonText } from "../../../components/ui/Skeleton";
+import { ReturnPanel } from "../../../components/orders/ReturnPanel";
 import { formatEtd, formatEventDate, formatPlacedAt, paymentMeta, statusMeta, steps } from "../../../components/orders/status";
 
 export default function OrderDetailPage() {
@@ -33,13 +34,16 @@ export default function OrderDetailPage() {
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [trackingError, setTrackingError] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  // Bumped after a return is opened or withdrawn, to pull the order again: the
+  // eligibility and the requests on it are both decided by the server.
+  const [refresh, setRefresh] = useState(0);
 
   const handleCancel = async () => {
     if (!token || typeof id !== "string" || !order) return;
     const units = order.items.reduce((total, line) => total + line.quantity, 0);
     const confirmed = window.confirm(
       `Cancel order #${order.id.slice(0, 8)}?\n\n${units} item${units === 1 ? "" : "s"} will be released. ` +
-        "If you have already paid, a refund is issued to your original payment method."
+        "If you have already paid, we will refund you to the same card or account. Write to us if you do not hear back."
     );
     if (!confirmed) return;
 
@@ -81,7 +85,7 @@ export default function OrderDetailPage() {
     return () => {
       active = false;
     };
-  }, [token, id]);
+  }, [token, id, refresh]);
 
   // Once a parcel has an AWB the scans are the most useful thing on this page,
   // so they load with it rather than waiting behind a button.
@@ -390,6 +394,12 @@ export default function OrderDetailPage() {
             )}
           </section>
         </motion.div>
+
+        {token && (
+          <motion.div variants={fadeUp}>
+            <ReturnPanel order={order} token={token} onChanged={() => setRefresh((count) => count + 1)} />
+          </motion.div>
+        )}
 
         {canCancel && (
           <motion.div variants={fadeUp} className="mt-6 flex flex-wrap items-center justify-between gap-3">
