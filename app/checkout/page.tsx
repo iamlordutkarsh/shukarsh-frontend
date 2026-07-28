@@ -116,8 +116,12 @@ export default function CheckoutPage() {
     () => items.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
     [items]
   );
+  const cartKey = useMemo(
+    () => lineItems.map((line) => `${line.productId}:${line.quantity}`).join(","),
+    [lineItems]
+  );
   /** A quote is only valid for the bag and PIN code it was fetched for. */
-  const quoteKey = `${form.zip}|${lineItems.map((line) => `${line.productId}:${line.quantity}`).join(",")}`;
+  const quoteKey = `${form.zip}|${cartKey}`;
 
   /** Fill in city and state from the PIN code so nobody has to type them. */
   useEffect(() => {
@@ -204,12 +208,13 @@ export default function CheckoutPage() {
   const [couponPending, setCouponPending] = useState(false);
 
   const quoteFor = `${quoteKey}|${form.state}|${courierIdForQuote ?? ""}|${couponCode}`;
-  const [quoted, setQuoted] = useState<{ key: string; data: OrderQuote } | null>(null);
+  const [quoted, setQuoted] = useState<{ key: string; cartKey: string; data: OrderQuote } | null>(null);
 
   useEffect(() => {
     if (lineItems.length === 0) return;
 
     const key = quoteFor;
+    const bag = cartKey;
     let active = true;
 
     const timer = setTimeout(() => {
@@ -227,12 +232,12 @@ export default function CheckoutPage() {
         token || undefined
       )
         .then((data) => {
-          if (active) setQuoted({ key, data });
+          if (active) setQuoted({ key, cartKey: bag, data });
         })
         .catch(() => {
-          // The bag still totals up without it, so a failed quote just hides
-          // the GST line rather than blocking checkout.
-          if (active) setQuoted(null);
+          // Whatever settled last stays on screen. It is at most a moment out
+          // of date, and blanking it sends the total back to the undiscounted
+          // one, which reads as a pricing glitch rather than a slow network.
         })
         .finally(() => {
           if (active) setCouponPending(false);
@@ -243,9 +248,27 @@ export default function CheckoutPage() {
       active = false;
       clearTimeout(timer);
     };
-  }, [quoteFor, lineItems, pincodeReady, form.zip, form.state, form.email, courierIdForQuote, couponCode, token]);
+  }, [
+    quoteFor,
+    cartKey,
+    lineItems,
+    pincodeReady,
+    form.zip,
+    form.state,
+    form.email,
+    courierIdForQuote,
+    couponCode,
+    token,
+  ]);
 
-  const priced = quoted?.key === quoteFor ? quoted.data : null;
+  /**
+   * The last quote that settled, kept on screen while the next one is in
+   * flight. Address entry re-quotes on every keystroke, and dropping the
+   * figures each time made the discount and GST blink out and the total bounce
+   * back up. Only a changed bag makes the old numbers actually wrong.
+   */
+  const priced = quoted?.cartKey === cartKey ? quoted.data : null;
+  const pricedStale = priced !== null && quoted!.key !== quoteFor;
   const tax = priced?.tax ?? null;
   const showTax = tax?.enabled === true && tax.total > 0;
   const appliedCoupon = priced?.coupon ?? null;
@@ -737,7 +760,13 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              <dl className="mt-5 space-y-2 border-t border-line pt-4 text-sm">
+              <dl
+                aria-busy={pricedStale}
+                className={cn(
+                  "mt-5 space-y-2 border-t border-line pt-4 text-sm transition-opacity",
+                  pricedStale && "opacity-50"
+                )}
+              >
                 <div className="flex justify-between text-muted">
                   <dt>Subtotal</dt>
                   <dd className="font-semibold text-ink">{formatPrice(totalPrice)}</dd>
