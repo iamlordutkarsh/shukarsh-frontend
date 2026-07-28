@@ -244,26 +244,39 @@ export async function createRazorpayOrder(
 export interface LogisticsConfig {
   enabled: boolean;
   pickupPincode: string | null;
+  /** Order value at or above which delivery is free. */
+  freeAbove: number;
+  /** Charged below that, the same to every pincode. 0 means delivery is always free. */
+  flatFee: number;
 }
 
 export async function getLogisticsConfig(): Promise<LogisticsConfig> {
   return fetcher<LogisticsConfig>("/logistics/config", { cache: "no-store" });
 }
 
-export interface ShippingRates {
+/**
+ * What delivery costs and when it lands. No per courier rates: the customer does
+ * not pick a courier, so the only questions left are how much and how long.
+ */
+export interface DeliveryQuote {
+  /** False when live shipping is off, so there is no estimate to be had. */
   enabled: boolean;
   serviceable: boolean;
   weightKg?: number;
-  options: CourierOption[];
-  blocked?: { courierName: string; reason: string }[];
+  shippingAmount: number;
   freeShipping: boolean;
+  /** What is still to be spent to earn free delivery. 0 when there is nothing to earn. */
+  shortfall: number;
+  etdDays: number | null;
+  etd: string | null;
+  blocked?: { courierName: string; reason: string }[];
 }
 
-export async function getShippingRates(payload: {
+export async function getDeliveryQuote(payload: {
   pincode: string;
   items: { productId: string; quantity: number }[];
-}): Promise<ShippingRates> {
-  return fetcher<ShippingRates>("/logistics/rates", {
+}): Promise<DeliveryQuote> {
+  return fetcher<DeliveryQuote>("/logistics/rates", {
     method: "POST",
     body: JSON.stringify(payload),
   });

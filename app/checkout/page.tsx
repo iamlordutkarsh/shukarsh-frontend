@@ -3,21 +3,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgePercent, CreditCard, Lock, MapPin, ShoppingBag, Star, Truck, TriangleAlert } from "lucide-react";
+import { BadgePercent, CreditCard, Lock, MapPin, ShoppingBag, Truck, TriangleAlert } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createRazorpayOrder,
+  getDeliveryQuote,
   getOrderQuote,
-  getShippingRates,
   lookupPincode,
   verifyRazorpayPayment,
+  type DeliveryQuote,
   type OrderQuote,
-  type ShippingRates,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useCart } from "../../lib/cart";
 import { INDIAN_STATES, ORDER_PLACED_KEY, canonicalState } from "../../lib/constants";
+import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { fadeUp, staggerParent } from "../../lib/motion";
 import { cn, displayName, formatPrice } from "../../lib/utils";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
@@ -84,12 +85,6 @@ function normalizePhone(value: string) {
     .slice(0, 10);
 }
 
-function etdLabel(option: { etd: string | null; etdDays: number | null }) {
-  if (option.etdDays) return `${option.etdDays} day${option.etdDays === 1 ? "" : "s"}`;
-  if (option.etd) return option.etd.split(" ")[0];
-  return null;
-}
-
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCart();
   const { user, token } = useAuth();
@@ -108,8 +103,7 @@ export default function CheckoutPage() {
     email: user?.email || "",
   });
 
-  const [quote, setQuote] = useState<{ key: string; data: ShippingRates | null; error: string } | null>(null);
-  const [preferredCourierId, setPreferredCourierId] = useState<number | null>(null);
+  const [quote, setQuote] = useState<{ key: string; data: DeliveryQuote | null; error: string } | null>(null);
 
   const pincodeReady = PINCODE.test(form.zip);
   const lineItems = useMemo(
@@ -151,7 +145,7 @@ export default function CheckoutPage() {
     };
   }, [form.zip, pincodeReady]);
 
-  /** Live courier rates for this bag and this PIN code. */
+  /** Whether we deliver there, and how long it takes. */
   useEffect(() => {
     if (!pincodeReady || lineItems.length === 0) return;
 
@@ -160,7 +154,7 @@ export default function CheckoutPage() {
     let active = true;
 
     const timer = setTimeout(() => {
-      getShippingRates({ pincode, items: lineItems })
+      getDeliveryQuote({ pincode, items: lineItems })
         .then((data) => {
           if (active) setQuote({ key, data, error: "" });
         })
@@ -169,7 +163,7 @@ export default function CheckoutPage() {
           setQuote({
             key,
             data: null,
-            error: err instanceof Error ? err.message : "Could not fetch delivery options",
+            error: err instanceof Error ? err.message : "Could not check delivery to this PIN code",
           });
         });
     }, 450);
@@ -181,33 +175,19 @@ export default function CheckoutPage() {
   }, [quoteKey, form.zip, pincodeReady, lineItems]);
 
   const settledQuote = quote?.key === quoteKey ? quote : null;
-  const rates = settledQuote?.data ?? null;
-  const ratesError = settledQuote?.error ?? "";
-  const ratesLoading = pincodeReady && lineItems.length > 0 && settledQuote === null;
+  const delivery = settledQuote?.data ?? null;
+  const deliveryLoading = pincodeReady && lineItems.length > 0 && settledQuote === null;
 
-  const liveShipping = rates?.enabled === true;
-  const options = rates?.options ?? [];
-  const selectedCourier =
-    options.find((option) => option.courierId === preferredCourierId) ??
-    options.find((option) => option.recommended) ??
-    options[0] ??
-    null;
-  const shippingAmount = liveShipping && selectedCourier ? Math.round(selectedCourier.rate) : 0;
-  const total = totalPrice + shippingAmount;
-  const unserviceable = liveShipping && rates !== null && !rates.serviceable;
+  const etaDays = delivery?.etdDays ?? null;
+  const unserviceable = delivery?.enabled === true && !delivery.serviceable;
+  const policy = useDeliveryPolicy();
 
-  /**
-   * The GST already sitting inside the total, worked out by the same server
-   * code that will charge it. Prices are MRP so this never moves the total; it
-   * only says how much of it is tax, which an Indian invoice has to state.
-   */
-  const courierIdForQuote = selectedCourier?.courierId ?? null;
   const [couponInput, setCouponInput] = useState("");
   /** The code we are actually pricing against, only set once it is submitted. */
   const [couponCode, setCouponCode] = useState("");
   const [couponPending, setCouponPending] = useState(false);
 
-  const quoteFor = `${quoteKey}|${form.state}|${courierIdForQuote ?? ""}|${couponCode}`;
+  const quoteFor = `${quoteKey}|${form.state}|${couponCode}`;
   const [quoted, setQuoted] = useState<{ key: string; cartKey: string; data: OrderQuote } | null>(null);
 
   useEffect(() => {
@@ -223,7 +203,6 @@ export default function CheckoutPage() {
           items: lineItems,
           ...(pincodeReady ? { pincode: form.zip } : {}),
           ...(form.state ? { state: form.state } : {}),
-          ...(courierIdForQuote ? { courierId: courierIdForQuote } : {}),
           ...(couponCode ? { couponCode } : {}),
           // Half of a typed address is not an address. Sending one would have
           // the quote rejected and take the GST line and the discount with it.
@@ -248,18 +227,7 @@ export default function CheckoutPage() {
       active = false;
       clearTimeout(timer);
     };
-  }, [
-    quoteFor,
-    cartKey,
-    lineItems,
-    pincodeReady,
-    form.zip,
-    form.state,
-    form.email,
-    courierIdForQuote,
-    couponCode,
-    token,
-  ]);
+  }, [quoteFor, cartKey, lineItems, pincodeReady, form.zip, form.state, form.email, couponCode, token]);
 
   /**
    * The last quote that settled, kept on screen while the next one is in
@@ -269,6 +237,11 @@ export default function CheckoutPage() {
    */
   const priced = quoted?.cartKey === cartKey ? quoted.data : null;
   const pricedStale = priced !== null && quoted!.key !== quoteFor;
+  /**
+   * The GST already sitting inside the total, worked out by the same server code
+   * that will charge it. Prices are MRP so this never moves the total; it only
+   * says how much of it is tax, which an Indian invoice has to state.
+   */
   const tax = priced?.tax ?? null;
   const showTax = tax?.enabled === true && tax.total > 0;
   const appliedCoupon = priced?.coupon ?? null;
@@ -291,8 +264,18 @@ export default function CheckoutPage() {
   };
 
   const discount = priced?.discountTotal ?? 0;
+
+  /**
+   * The priced quote is the figure being charged, so it wins. The other two are
+   * fallbacks for before an address exists or when a call fails, and none of them
+   * needs a pincode: what delivery costs is decided by the order value, not by
+   * how far the parcel has to travel.
+   */
+  const deliveryFee =
+    priced?.shippingAmount ?? delivery?.shippingAmount ?? deliveryFor(totalPrice - discount, policy)?.fee ?? 0;
+  const deliveryFree = deliveryFee === 0;
   // Until a quote settles, the locally summed total is the honest thing to show.
-  const displayTotal = priced ? priced.totalAmount : total;
+  const displayTotal = priced ? priced.totalAmount : totalPrice + deliveryFee;
 
   if (items.length === 0) {
     return (
@@ -347,7 +330,6 @@ export default function CheckoutPage() {
             country: "India",
           },
           email: form.email,
-          ...(selectedCourier ? { courierId: selectedCourier.courierId } : {}),
           ...(couponCode ? { couponCode } : {}),
         },
         token || undefined
@@ -403,11 +385,9 @@ export default function CheckoutPage() {
   };
 
   const shippingLabel = () => {
-    if (!pincodeReady) return <dd className="font-semibold text-faint">Enter your PIN code</dd>;
-    if (ratesLoading) return <dd className="font-semibold text-faint">Checking couriers…</dd>;
     if (unserviceable) return <dd className="font-semibold text-rose-500">Not serviceable</dd>;
-    if (!liveShipping || !selectedCourier) return <dd className="font-semibold text-mint-400">Free</dd>;
-    return <dd className="font-semibold text-ink">{formatPrice(shippingAmount)}</dd>;
+    if (deliveryFree) return <dd className="font-semibold text-mint-400">Free</dd>;
+    return <dd className="font-semibold text-ink">{formatPrice(deliveryFee)}</dd>;
   };
 
   return (
@@ -576,23 +556,18 @@ export default function CheckoutPage() {
               >
                 <h2 className="flex items-center gap-2 font-display text-xl text-ink">
                   <Truck className="h-4 w-4 text-lavender-500" strokeWidth={2.4} />
-                  How should we ship it?
+                  When will it arrive?
                 </h2>
 
                 {!pincodeReady ? (
                   <p className="mt-4 flex items-start gap-2.5 rounded-3xl bg-lavender-50 px-4 py-3.5 text-sm text-ink-700">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-lavender-500" strokeWidth={2.4} />
-                    Enter your PIN code above and we will pull live courier rates for your parcel.
+                    Enter your PIN code above and we will tell you how long it takes to reach you.
                   </p>
-                ) : ratesLoading ? (
-                  <div className="mt-5 space-y-3" role="status" aria-label="Loading delivery options">
-                    <Skeleton className="h-16 w-full rounded-3xl" />
+                ) : deliveryLoading ? (
+                  <div className="mt-5" role="status" aria-label="Checking delivery">
                     <Skeleton className="h-16 w-full rounded-3xl" />
                   </div>
-                ) : ratesError ? (
-                  <p className="mt-4 text-sm text-muted">
-                    {ratesError} We will pick the best courier for you after checkout.
-                  </p>
                 ) : unserviceable ? (
                   <div className="mt-4 flex items-start gap-2.5 rounded-3xl bg-rose-50 px-4 py-3.5 text-sm text-rose-600">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.4} />
@@ -601,66 +576,16 @@ export default function CheckoutPage() {
                       re-check instantly.
                     </span>
                   </div>
-                ) : !liveShipping || options.length === 0 ? (
-                  <p className="mt-4 flex items-start gap-2.5 rounded-3xl bg-mint-100/70 px-4 py-3.5 text-sm text-ink-700">
-                    <Truck className="mt-0.5 h-4 w-4 shrink-0 text-mint-400" strokeWidth={2.4} />
-                    Delivery is on us for this order.
-                  </p>
                 ) : (
-                  <>
-                    <p className="mt-1.5 text-sm text-muted">
-                      Rates are live from Shiprocket for
-                      {rates?.weightKg ? ` a ${rates.weightKg} kg parcel` : " your parcel"} going to {form.zip}.
-                    </p>
-
-                    <ul className="mt-5 space-y-2.5">
-                      {options.map((option) => {
-                        const active = option.courierId === selectedCourier?.courierId;
-                        const eta = etdLabel(option);
-
-                        return (
-                          <li key={option.courierId}>
-                            <label
-                              className={cn(
-                                "flex cursor-pointer items-center gap-3 rounded-3xl px-4 py-3.5 ring-1 transition-all",
-                                active
-                                  ? "bg-lavender-50 ring-2 ring-lavender-400"
-                                  : "bg-surface ring-line hover:ring-lavender-300"
-                              )}
-                            >
-                              <input
-                                type="radio"
-                                name="courier"
-                                className="h-4 w-4 shrink-0 accent-lavender-500"
-                                checked={active}
-                                onChange={() => setPreferredCourierId(option.courierId)}
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className="flex flex-wrap items-center gap-1.5">
-                                  <span className="truncate text-sm font-semibold text-ink">
-                                    {option.courierName}
-                                  </span>
-                                  {option.recommended && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-mint-100 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-mint-400">
-                                      <Star className="h-2.5 w-2.5" strokeWidth={3} />
-                                      Best
-                                    </span>
-                                  )}
-                                </span>
-                                <span className="mt-0.5 block text-xs text-muted">
-                                  {eta ? `Arrives in about ${eta}` : "Delivery estimate on dispatch"}
-                                  {option.isSurface ? " · Surface" : " · Air"}
-                                </span>
-                              </span>
-                              <span className="shrink-0 text-sm font-bold text-ink">
-                                {formatPrice(Math.round(option.rate))}
-                              </span>
-                            </label>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </>
+                  <div className="mt-4 flex items-start gap-2.5 rounded-3xl bg-mint-100/70 px-4 py-3.5 text-sm text-ink-700">
+                    <Truck className="mt-0.5 h-4 w-4 shrink-0 text-mint-400" strokeWidth={2.4} />
+                    <span>
+                      {deliveryFree ? "Delivery is on us." : `Delivery is ${formatPrice(deliveryFee)}.`}{" "}
+                      {etaDays
+                        ? `Expect it in about ${etaDays} day${etaDays === 1 ? "" : "s"}.`
+                        : "We will confirm the timing when it is dispatched."}
+                    </span>
+                  </div>
                 )}
               </motion.section>
 
@@ -778,15 +703,17 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 <div className="flex justify-between text-muted">
-                  <dt>Shipping</dt>
+                  <dt>Delivery</dt>
                   {appliedCoupon?.freeShipping ? (
                     <dd className="font-semibold text-mint-400">Free</dd>
                   ) : (
                     shippingLabel()
                   )}
                 </div>
-                {selectedCourier && !appliedCoupon?.freeShipping && (
-                  <p className="text-xs text-faint">via {selectedCourier.courierName}</p>
+                {etaDays !== null && !unserviceable && (
+                  <p className="text-xs text-faint">
+                    Arrives in about {etaDays} day{etaDays === 1 ? "" : "s"}
+                  </p>
                 )}
                 <div className="flex items-baseline justify-between border-t border-line pt-3">
                   <dt className="font-display text-lg text-ink">Total</dt>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MapPin, Truck } from "lucide-react";
-import { getShippingRates, lookupPincode, type ShippingRates } from "../../lib/api";
+import { getDeliveryQuote, lookupPincode, type DeliveryQuote } from "../../lib/api";
 import { Button } from "../ui/Button";
 
 const PINCODE = /^[1-9]\d{5}$/;
@@ -17,7 +17,7 @@ const PINCODE = /^[1-9]\d{5}$/;
 export function DeliveryCheck({ productId }: { productId: string }) {
   const [pincode, setPincode] = useState("");
   const [place, setPlace] = useState<{ city: string | null; state: string | null } | null>(null);
-  const [rates, setRates] = useState<ShippingRates | null>(null);
+  const [rates, setRates] = useState<DeliveryQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,7 +35,7 @@ export function DeliveryCheck({ productId }: { productId: string }) {
     try {
       const [where, quote] = await Promise.all([
         lookupPincode(pincode).catch(() => null),
-        getShippingRates({ pincode, items: [{ productId, quantity: 1 }] }),
+        getDeliveryQuote({ pincode, items: [{ productId, quantity: 1 }] }),
       ]);
       setPlace(where);
       setRates(quote);
@@ -46,7 +46,7 @@ export function DeliveryCheck({ productId }: { productId: string }) {
     }
   };
 
-  const best = rates?.options?.[0] ?? null;
+  const etaDays = rates?.etdDays ?? null;
   const placeLabel = [place?.city, place?.state].filter(Boolean).join(", ");
 
   return (
@@ -81,23 +81,32 @@ export function DeliveryCheck({ productId }: { productId: string }) {
             </p>
           )}
 
-          {!rates.enabled || rates.freeShipping ? (
-            <p className="mt-1 text-muted">Delivery is on us for this one.</p>
-          ) : !rates.serviceable ? (
+          {rates.enabled && !rates.serviceable ? (
             <p className="mt-1 text-rose-500">
               No courier is delivering to {pincode} right now. Try another PIN code.
             </p>
-          ) : best ? (
-            <p className="mt-1 text-muted">
-              Arrives in about{" "}
-              <span className="font-semibold text-ink">
-                {best.etdDays ? `${best.etdDays} day${best.etdDays === 1 ? "" : "s"}` : best.etd ?? "a few days"}
-              </span>{" "}
-              with {best.courierName}. Shipping from{" "}
-              <span className="font-semibold text-ink">₹{Math.round(best.rate)}</span>.
-            </p>
           ) : (
-            <p className="mt-1 text-muted">We deliver here. Rates are shown at checkout.</p>
+            <p className="mt-1 text-muted">
+              {etaDays ? (
+                <>
+                  Arrives in about{" "}
+                  <span className="font-semibold text-ink">
+                    {etaDays} day{etaDays === 1 ? "" : "s"}
+                  </span>
+                  .{" "}
+                </>
+              ) : (
+                "We deliver here. "
+              )}
+              {rates.freeShipping ? (
+                <span className="font-semibold text-mint-400">Delivery is on us.</span>
+              ) : (
+                <>
+                  Delivery <span className="font-semibold text-ink">₹{Math.round(rates.shippingAmount)}</span>
+                  {rates.shortfall > 0 && <>, or free once your bag reaches ₹{Math.round(rates.shortfall)} more</>}.
+                </>
+              )}
+            </p>
           )}
         </div>
       )}
