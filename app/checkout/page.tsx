@@ -74,6 +74,7 @@ const fieldClass =
 
 const PINCODE = /^[1-9]\d{5}$/;
 const PHONE = /^[6-9]\d{9}$/;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizePhone(value: string) {
   return value
@@ -219,7 +220,9 @@ export default function CheckoutPage() {
           ...(form.state ? { state: form.state } : {}),
           ...(courierIdForQuote ? { courierId: courierIdForQuote } : {}),
           ...(couponCode ? { couponCode } : {}),
-          ...(form.email ? { email: form.email } : {}),
+          // Half of a typed address is not an address. Sending one would have
+          // the quote rejected and take the GST line and the discount with it.
+          ...(EMAIL.test(form.email) ? { email: form.email } : {}),
         },
         token || undefined
       )
