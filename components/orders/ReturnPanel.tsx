@@ -1,8 +1,9 @@
 "use client";
 
-import { useId, useState } from "react";
-import { RotateCcw } from "lucide-react";
-import { requestReturn, withdrawReturn } from "../../lib/api";
+import { useId, useRef, useState } from "react";
+import Image from "next/image";
+import { ImagePlus, RotateCcw, X } from "lucide-react";
+import { requestReturn, uploadReturnPhotos, withdrawReturn } from "../../lib/api";
 import type { Order, ReturnOutcome, ReturnReason } from "../../lib/types";
 import { cn, formatPrice } from "../../lib/utils";
 import { Button } from "../ui/Button";
@@ -22,6 +23,9 @@ const OUTCOMES: { value: ReturnOutcome; label: string; hint: string }[] = [
 
 const MIN_NOTE = 10;
 
+/** Matches the cap the upload endpoint enforces. */
+const MAX_PHOTOS = 4;
+
 export function ReturnPanel({ order, token, onChanged }: { order: Order; token: string; onChanged: () => void }) {
   const uid = useId();
   const { toast } = useToast();
@@ -30,9 +34,12 @@ export function ReturnPanel({ order, token, onChanged }: { order: Order; token: 
   const [reason, setReason] = useState<ReturnReason>("DAMAGED");
   const [outcome, setOutcome] = useState<ReturnOutcome>("REFUND");
   const [note, setNote] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [picked, setPicked] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [withdrawing, setWithdrawing] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const policy = order.returnWindow;
   const requests = order.returns ?? [];
@@ -40,6 +47,9 @@ export function ReturnPanel({ order, token, onChanged }: { order: Order; token: 
   const claimable = order.items.filter((item) => (available[item.id] ?? 0) > 0);
   const chosen = Object.entries(picked).filter(([, quantity]) => quantity > 0);
   const noteTooShort = note.trim().length < MIN_NOTE;
+  // Damage is a claim about the state of the goods, and the server refuses one
+  // without a picture. Say so here rather than letting the submit fail.
+  const photoMissing = reason === "DAMAGED" && photos.length === 0;
 
   const toggle = (orderItemId: string) => {
     setPicked((current) => {
@@ -50,8 +60,29 @@ export function ReturnPanel({ order, token, onChanged }: { order: Order; token: 
     });
   };
 
+  const addPhotos = async (files: FileList | null) => {
+    const room = MAX_PHOTOS - photos.length;
+    if (!files || files.length === 0 || room <= 0) return;
+
+    setUploading(true);
+    try {
+      const { urls } = await uploadReturnPhotos(token, Array.from(files).slice(0, room));
+      setPhotos((current) => [...current, ...urls].slice(0, MAX_PHOTOS));
+    } catch (error) {
+      toast({
+        title: "Could not add that photo",
+        description: error instanceof Error ? error.message : "Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setUploading(false);
+      // Clearing it lets the same file be picked again after a failure.
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
   const submit = async () => {
-    if (chosen.length === 0 || noteTooShort) return;
+    if (chosen.length === 0 || noteTooShort || photoMissing) return;
 
     setSaving(true);
     try {
@@ -59,6 +90,7 @@ export function ReturnPanel({ order, token, onChanged }: { order: Order; token: 
         reason,
         outcome,
         note: note.trim(),
+        photos,
         items: chosen.map(([orderItemId, quantity]) => ({ orderItemId, quantity })),
       });
       toast({
@@ -69,6 +101,7 @@ export function ReturnPanel({ order, token, onChanged }: { order: Order; token: 
       setOpen(false);
       setPicked({});
       setNote("");
+      setPhotos([]);
       onChanged();
     } catch (error) {
       toast({
@@ -138,6 +171,30 @@ export function ReturnPanel({ order, token, onChanged }: { order: Order; token: 
                     </li>
                   ))}
                 </ul>
+
+                {/* Guarded: the browser may still be on an older build than the API. */}
+                {(request.photos ?? []).length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {(request.photos ?? []).map((url, index) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="relative h-14 w-14 overflow-hidden rounded-xl bg-surface ring-1 ring-line"
+                      >
+                        <Image
+                          src={url}
+                          alt={`Photo ${index + 1}`}
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
 
                 {request.adminNote && (
                   <p className="mt-2.5 text-xs leading-relaxed text-muted">
@@ -324,12 +381,75 @@ export function ReturnPanel({ order, token, onChanged }: { order: Order; token: 
             </p>
           </div>
 
+          <div className="space-y-2">
+            <span className="block text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint">
+              {reason === "DAMAGED" ? "Show us the damage" : "Photos, if you have them"}
+            </span>
+
+            <div className="flex flex-wrap gap-2">
+              {photos.map((url, index) => (
+                <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-2xl bg-lavender-50">
+                  {/* Unoptimized on purpose: two people will ever look at these,
+                      which is not worth an image transformation each. */}
+                  <Image
+                    src={url}
+                    alt={`Photo ${index + 1}`}
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPhotos((current) => current.filter((item) => item !== url))}
+                    aria-label={`Remove photo ${index + 1}`}
+                    className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-ink/70 text-white transition-opacity hover:bg-ink"
+                  >
+                    <X className="h-3.5 w-3.5" strokeWidth={2.6} />
+                  </button>
+                </div>
+              ))}
+
+              {photos.length < MAX_PHOTOS && (
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  disabled={uploading}
+                  className={cn(
+                    "grid h-20 w-20 place-items-center gap-1 rounded-2xl text-muted ring-1 ring-line transition-colors",
+                    uploading ? "opacity-60" : "hover:bg-lavender-50/60 hover:text-lavender-500 hover:ring-lavender-200"
+                  )}
+                >
+                  <ImagePlus className="h-5 w-5" strokeWidth={2.2} />
+                  <span className="text-[0.625rem] font-semibold uppercase tracking-[0.1em]">
+                    {uploading ? "Adding" : "Add"}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(event) => void addPhotos(event.target.files)}
+            />
+
+            <p className="text-xs leading-relaxed text-muted">
+              {reason === "DAMAGED"
+                ? `A photo of the damage is needed before we can accept this. Up to ${MAX_PHOTOS}, straight from your phone is fine.`
+                : `Up to ${MAX_PHOTOS}. Not required here, but a picture usually saves us writing back to ask.`}
+            </p>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="dark"
               size="sm"
               loading={saving}
-              disabled={chosen.length === 0 || noteTooShort}
+              disabled={chosen.length === 0 || noteTooShort || photoMissing || uploading}
               onClick={submit}
             >
               Send this to us

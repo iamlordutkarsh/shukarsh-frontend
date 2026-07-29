@@ -131,6 +131,7 @@ export interface ReturnRequest {
   outcome: ReturnOutcome;
   status: ReturnStatus;
   customerNote: string;
+  photos: string[];
   adminNote: string | null;
   refundAmount: number | null;
   items: ReturnItem[];

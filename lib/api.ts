@@ -454,6 +454,7 @@ export async function requestReturn(
     reason: ReturnReason;
     outcome: ReturnOutcome;
     note: string;
+    photos?: string[];
     items: { orderItemId: string; quantity: number }[];
   }
 ): Promise<{ return: ReturnRequest }> {
@@ -500,6 +501,25 @@ export async function uploadProductImages(token: string, files: File[]): Promise
   files.forEach((file) => body.append("files", file));
 
   const response = await fetch(`${API_URL}/api/uploads`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: "Upload failed" }));
+    throw new Error(error.error || "Upload failed");
+  }
+
+  return response.json() as Promise<{ urls: string[] }>;
+}
+
+/** Photos for a return. Separate endpoint from the catalogue's: no admin needed. */
+export async function uploadReturnPhotos(token: string, files: File[]): Promise<{ urls: string[] }> {
+  const body = new FormData();
+  files.forEach((file) => body.append("files", file));
+
+  const response = await fetch(`${API_URL}/api/uploads/returns`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState } from "react";
+import Image from "next/image";
 import { Check, Package, RotateCcw, X } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { textareaClass } from "../../../components/admin/FormField";
@@ -243,6 +244,30 @@ export default function AdminReturnsPage() {
                   <span className="font-semibold text-ink">Their words: </span>
                   {request.customerNote}
                 </p>
+
+                {(request.photos ?? []).length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {(request.photos ?? []).map((url, index) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Open full size"
+                        className="relative h-20 w-20 overflow-hidden rounded-2xl bg-lavender-50 ring-1 ring-line transition-shadow hover:ring-2 hover:ring-lavender-300"
+                      >
+                        <Image
+                          src={url}
+                          alt={`Photo ${index + 1}`}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
 
                 {request.adminNote && (
                   <p className="mt-2 text-xs leading-relaxed text-muted">
