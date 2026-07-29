@@ -4,7 +4,16 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, BadgePercent, LayoutDashboard, Package, RotateCcw, ShoppingCart, Tags } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgePercent,
+  ChartLine,
+  LayoutDashboard,
+  Package,
+  RotateCcw,
+  ShoppingCart,
+  Tags,
+} from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { cn } from "../lib/utils";
 import { ButtonLink } from "./ui/Button";
@@ -15,6 +24,7 @@ import { easeSoft } from "../lib/motion";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: ChartLine },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },

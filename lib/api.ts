@@ -1,5 +1,6 @@
 import {
   AdminReturn,
+  AnalyticsSummary,
   AppliedCoupon,
   Category,
   Coupon,
@@ -514,6 +515,12 @@ export async function uploadProductImages(token: string, files: File[]): Promise
   }
 
   return response.json() as Promise<{ urls: string[] }>;
+}
+
+export async function getAnalytics(token: string, days: number): Promise<{ summary: AnalyticsSummary }> {
+  return adminFetcher<{ summary: AnalyticsSummary }>(`/analytics/summary?days=${days}`, token, {
+    cache: "no-store",
+  });
 }
 
 /**

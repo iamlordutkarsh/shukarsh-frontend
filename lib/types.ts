@@ -125,6 +125,39 @@ export interface ReturnItem {
   product: { id: string; name: string; slug: string; images: string[] } | null;
 }
 
+export interface AnalyticsSummary {
+  days: number;
+  from: string;
+  money: {
+    revenue: number;
+    orders: number;
+    averageOrder: number;
+    gstCollected: number;
+    discountGiven: number;
+    deliveryCharged: number;
+    refunded: number;
+  };
+  margin: {
+    netSales: number;
+    cost: number;
+    profit: number;
+    percent: number;
+    /** Share of units sold whose cost is known, 0 to 1. */
+    coverage: number;
+  };
+  funnel: {
+    bagsStarted: number;
+    checkoutsStarted: number;
+    paid: number;
+    abandonRate: number;
+  };
+  daily: { day: string; revenue: number; orders: number }[];
+  topProducts: { id: string; name: string; slug: string; units: number; revenue: number }[];
+  deadStock: { id: string; name: string; slug: string; stock: number }[];
+  returns: { units: number; rate: number; damaged: number; wrongItem: number };
+  stock: { onShelf: number; valueAtCost: number; lowCount: number };
+}
+
 export type StockMoveReason =
   | "INITIAL"
   | "SALE"
