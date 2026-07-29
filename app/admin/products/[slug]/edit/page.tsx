@@ -44,6 +44,7 @@ export default function EditProductPage() {
       price: Number(form.price),
       comparePrice: form.comparePrice ? Number(form.comparePrice) : undefined,
       stock: Number(form.stock),
+      lowStockThreshold: Number(form.lowStockThreshold),
       images: form.images,
       categoryId: form.categoryId,
       isActive: form.isActive,

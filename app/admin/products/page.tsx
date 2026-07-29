@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
+import { StockAdjuster } from "../../../components/admin/StockAdjuster";
 import { Button, ButtonLink } from "../../../components/ui/Button";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { NoResultsArt } from "../../../components/ui/KawaiiArt";
@@ -13,26 +14,31 @@ import { Pill } from "../../../components/ui/Pill";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useToast } from "../../../components/ui/Toast";
 import { deleteProduct, getProducts } from "../../../lib/api";
+import { isLowStock } from "../../../lib/inventory";
 import { useAuth } from "../../../lib/auth";
 import { Product } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
 
-function stockClass(stock: number) {
-  if (stock === 0) return "bg-rose-50 text-rose-500";
-  if (stock <= 5) return "bg-peach-100 text-peach-400";
-  return "bg-mint-100 text-mint-400";
+function stockClass(product: Product) {
+  if (product.stock <= 0) return "bg-rose-50 text-rose-500 hover:bg-rose-100";
+  if (isLowStock(product)) return "bg-peach-100 text-peach-400 hover:bg-peach-200";
+  return "bg-mint-100 text-mint-400 hover:bg-mint-200";
 }
 
-function StockBadge({ stock }: { stock: number }) {
+/** The badge is the way in: the number itself is what you want to click. */
+function StockBadge({ product, onAdjust }: { product: Product; onAdjust: () => void }) {
   return (
-    <span
+    <button
+      type="button"
+      onClick={onAdjust}
+      aria-label={`Adjust stock for ${product.name}`}
       className={cn(
-        "inline-flex items-center rounded-full px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.14em]",
-        stockClass(stock)
+        "inline-flex items-center rounded-full px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-[0.14em] transition-colors",
+        stockClass(product)
       )}
     >
-      {stock === 0 ? "Sold out" : `${stock} in stock`}
-    </span>
+      {product.stock <= 0 ? "Sold out" : `${product.stock} in stock`}
+    </button>
   );
 }
 
@@ -76,6 +82,7 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [adjusting, setAdjusting] = useState<Product | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -219,7 +226,7 @@ export default function AdminProductsPage() {
                         )}
                       </td>
                       <td className="px-5 py-4">
-                        <StockBadge stock={product.stock} />
+                        <StockBadge product={product} onAdjust={() => setAdjusting(product)} />
                       </td>
                       <td className="px-5 py-4">
                         <RowActions product={product} onDelete={setPendingDelete} />
@@ -246,7 +253,7 @@ export default function AdminProductsPage() {
                     <p className="mt-1 text-sm font-bold text-ink">{formatPrice(product.price)}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <Pill tone="lavender">{product.category.name}</Pill>
-                      <StockBadge stock={product.stock} />
+                      <StockBadge product={product} onAdjust={() => setAdjusting(product)} />
                     </div>
                   </div>
                 </div>
@@ -280,6 +287,20 @@ export default function AdminProductsPage() {
           </div>
         </div>
       </Modal>
+
+      {adjusting && token && (
+        <StockAdjuster
+          product={adjusting}
+          token={token}
+          open
+          onClose={() => setAdjusting(null)}
+          onSaved={(updated) =>
+            setProducts((current) =>
+              current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
+            )
+          }
+        />
+      )}
     </AdminLayout>
   );
 }

@@ -14,6 +14,7 @@ export interface Product {
   price: number;
   comparePrice: number | null;
   stock: number;
+  lowStockThreshold: number;
   images: string[];
   isActive: boolean;
   weightKg: number;
@@ -122,6 +123,30 @@ export interface ReturnItem {
   quantity: number;
   resellable: boolean | null;
   product: { id: string; name: string; slug: string; images: string[] } | null;
+}
+
+export type StockMoveReason =
+  | "INITIAL"
+  | "SALE"
+  | "CANCELLATION"
+  | "REOPEN"
+  | "RETURN_RESTOCK"
+  | "RECEIVED"
+  | "CORRECTION"
+  | "DAMAGE";
+
+/** The three a person may pick. The rest are written by the shop itself. */
+export type ManualStockReason = "RECEIVED" | "CORRECTION" | "DAMAGE";
+
+export interface StockMove {
+  id: string;
+  delta: number;
+  balance: number;
+  reason: StockMoveReason;
+  note: string | null;
+  orderId: string | null;
+  by: string | null;
+  createdAt: string;
 }
 
 export interface ReturnRequest {

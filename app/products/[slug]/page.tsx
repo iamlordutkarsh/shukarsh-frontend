@@ -5,6 +5,7 @@ import { ChevronRight, PackageCheck, RotateCcw, ShieldCheck, Truck } from "lucid
 import { Suspense } from "react";
 import { getProduct, getProducts } from "../../../lib/api";
 import { discountPercent, formatPrice } from "../../../lib/utils";
+import { isLowStock } from "../../../lib/inventory";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
 import { AddToCartButton } from "../../../components/product/AddToCartButton";
@@ -73,6 +74,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const comparePrice = product.comparePrice;
   const discount = discountPercent(product.price, comparePrice);
   const soldOut = product.stock <= 0;
+  const runningLow = isLowStock(product);
 
   // Only what this product actually carries. A spec table full of "—" reads as
   // missing data rather than detail, so blank fields are dropped entirely.
@@ -135,8 +137,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Pill tone="lavender">{product.category.name}</Pill>
-                {!soldOut && product.stock <= 5 && <Pill tone="peach">Only {product.stock} left</Pill>}
-                {!soldOut && product.stock > 5 && <Pill tone="mint">In stock</Pill>}
+                {!soldOut && runningLow && <Pill tone="peach">Only {product.stock} left</Pill>}
+                {!soldOut && !runningLow && <Pill tone="mint">In stock</Pill>}
               </div>
 
               <div className="flex flex-wrap items-start justify-between gap-3">

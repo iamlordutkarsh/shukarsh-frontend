@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import AdminLayout from "../../components/AdminLayout";
 import { AdminDashboard } from "../../components/admin/AdminDashboard";
 import { getCategories, getProducts } from "../../lib/api";
+import { isLowStock } from "../../lib/inventory";
 
 export default async function AdminDashboardPage() {
   const [{ categories }, { products, pagination }] = await Promise.all([
@@ -10,7 +11,7 @@ export default async function AdminDashboardPage() {
     getProducts({ limit: 100, sort: "newest" }),
   ]);
 
-  const lowStock = products.filter((product) => product.stock <= 5).slice(0, 6);
+  const lowStock = products.filter(isLowStock).slice(0, 6);
 
   return (
     <AdminLayout title="Dashboard" subtitle="A calm overview of the shop: what is in stock, what is selling, what needs love.">

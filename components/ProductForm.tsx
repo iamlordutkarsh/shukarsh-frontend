@@ -23,6 +23,7 @@ export interface FormData {
   price: string;
   comparePrice: string;
   stock: string;
+  lowStockThreshold: string;
   images: string[];
   categoryId: string;
   isActive: boolean;
@@ -53,6 +54,7 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     price: product?.price ? String(product.price) : "",
     comparePrice: product?.comparePrice ? String(product.comparePrice) : "",
     stock: product?.stock ? String(product.stock) : "",
+    lowStockThreshold: product?.lowStockThreshold != null ? String(product.lowStockThreshold) : "5",
     images: product?.images ?? [],
     categoryId: product?.categoryId || "",
     isActive: product?.isActive ?? true,
@@ -178,7 +180,15 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
 
       <FormCard title="Inventory" description="Stock and shelf placement.">
         <div className="grid gap-5 sm:grid-cols-2">
-          <FormField label="Stock" htmlFor={`${uid}-stock`}>
+          <FormField
+            label="Stock"
+            htmlFor={`${uid}-stock`}
+            hint={
+              product
+                ? "Saving this records a recount. To add a delivery, use the stock badge on the products list instead: it adds to whatever is there now."
+                : undefined
+            }
+          >
             <input
               id={`${uid}-stock`}
               required
@@ -187,6 +197,21 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
               step="1"
               value={form.stock}
               onChange={(e) => setForm({ ...form, stock: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+          <FormField
+            label="Reorder at"
+            htmlFor={`${uid}-threshold`}
+            hint="Below this it shows as running low, here and in the daily email."
+          >
+            <input
+              id={`${uid}-threshold`}
+              type="number"
+              min="0"
+              step="1"
+              value={form.lowStockThreshold}
+              onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })}
               className={inputClass}
             />
           </FormField>

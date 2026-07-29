@@ -4,6 +4,7 @@ import {
   Category,
   Coupon,
   CourierOption,
+  ManualStockReason,
   Order,
   Product,
   ReturnOutcome,
@@ -11,6 +12,7 @@ import {
   ReturnRequest,
   ReturnStatus,
   Shipment,
+  StockMove,
   Tracking,
   User,
 } from "./types";
@@ -512,6 +514,31 @@ export async function uploadProductImages(token: string, files: File[]): Promise
   }
 
   return response.json() as Promise<{ urls: string[] }>;
+}
+
+/**
+ * Moves stock by a difference, never to a total, so two people receiving stock at
+ * the same time both count rather than one overwriting the other.
+ */
+export async function adjustStock(
+  token: string,
+  productId: string,
+  payload: { delta: number; reason: ManualStockReason; note?: string }
+): Promise<{ product: Product }> {
+  return adminFetcher<{ product: Product }>(`/products/${productId}/stock`, token, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getStockMoves(
+  token: string,
+  productId: string,
+  limit = 30
+): Promise<{ moves: StockMove[] }> {
+  return adminFetcher<{ moves: StockMove[] }>(`/products/${productId}/stock-moves?limit=${limit}`, token, {
+    cache: "no-store",
+  });
 }
 
 /** Photos for a return. Separate endpoint from the catalogue's: no admin needed. */
