@@ -19,6 +19,8 @@ import { OopsArt } from "../../../components/ui/KawaiiArt";
 import { PastelTile } from "../../../components/ui/PastelTile";
 import { Skeleton, SkeletonText } from "../../../components/ui/Skeleton";
 import { ReturnPanel } from "../../../components/orders/ReturnPanel";
+import { WhatsAppIcon } from "../../../components/support/WhatsAppIcon";
+import { orderSupportLink } from "../../../lib/support";
 import { formatEtd, formatEventDate, formatPlacedAt, paymentMeta, statusMeta, steps } from "../../../components/orders/status";
 
 export default function OrderDetailPage() {
@@ -150,6 +152,7 @@ export default function OrderDetailPage() {
   // Only while the shop has not started on it. After approval someone is
   // packing, so calling it off has to go through them.
   const canCancel = order.status === "PENDING";
+  const chat = orderSupportLink(order.id);
 
   return (
     <div className="relative pb-20 pt-10">
@@ -398,6 +401,21 @@ export default function OrderDetailPage() {
         {token && (
           <motion.div variants={fadeUp}>
             <ReturnPanel order={order} token={token} onChanged={() => setRefresh((count) => count + 1)} />
+          </motion.div>
+        )}
+
+        {chat && (
+          <motion.div variants={fadeUp} className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted">Something else about this order?</p>
+            <a
+              href={chat}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-2 rounded-full bg-surface px-4 py-2 text-sm font-semibold text-ink shadow-soft transition-all hover:-translate-y-0.5 hover:text-mint-500 hairline"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+              Message us on WhatsApp
+            </a>
           </motion.div>
         )}
 

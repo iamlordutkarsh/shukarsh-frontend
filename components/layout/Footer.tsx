@@ -5,6 +5,8 @@ import { ArrowRight, ArrowUp, Camera, Mail, ShieldCheck, Sparkles } from "lucide
 import { useState } from "react";
 import { subscribeToNewsletter } from "../../lib/api";
 import { footerGroups } from "../../lib/nav";
+import { whatsappLink } from "../../lib/support";
+import { WhatsAppIcon } from "../support/WhatsAppIcon";
 import { Reveal } from "../motion/Reveal";
 import { FloatingDecor } from "../motion/FloatingDecor";
 import { Button } from "../ui/Button";
@@ -69,6 +71,8 @@ function NewsletterForm() {
 }
 
 export function Footer() {
+  const chat = whatsappLink("Hi Shukarsh!");
+
   return (
     <footer className="relative mt-24 overflow-hidden">
       <FloatingDecor className="opacity-70" />
@@ -117,6 +121,17 @@ export function Footer() {
               >
                 <Mail className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
               </a>
+              {chat && (
+                <a
+                  href={chat}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  aria-label="Message Shukarsh on WhatsApp"
+                  className="grid h-10 w-10 place-items-center rounded-full bg-surface text-ink-700 shadow-soft transition-all hover:-translate-y-0.5 hover:text-mint-500"
+                >
+                  <WhatsAppIcon className="h-[1.15rem] w-[1.15rem]" />
+                </a>
+              )}
             </div>
           </div>
 

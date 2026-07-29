@@ -8,6 +8,7 @@ import { MobileMenu } from "../components/layout/MobileMenu";
 import { Navbar } from "../components/layout/Navbar";
 import { SearchDialog } from "../components/layout/SearchDialog";
 import { PageTransition } from "../components/motion/PageTransition";
+import { SupportButton } from "../components/support/SupportButton";
 import { ToastProvider } from "../components/ui/Toast";
 import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   <SearchDialog />
                   <CartDrawer />
                   <MobileMenu />
+                  <SupportButton />
                 </ToastProvider>
               </CartProvider>
             </WishlistProvider>

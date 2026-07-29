@@ -20,6 +20,8 @@ Frontend for the Shukarsh e-commerce store.
 2. Create a `.env.local` file:
    ```env
    NEXT_PUBLIC_API_URL=http://localhost:5000
+   # Optional. Shows the WhatsApp chat button. Country code, no plus sign.
+   NEXT_PUBLIC_WHATSAPP_NUMBER=919876543210
    ```
 
 3. Run the development server:
@@ -42,6 +44,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser.
 
 1. Push this repo to GitHub.
 2. Import the project in [Vercel](https://vercel.com).
-3. Add the environment variable:
+3. Add the environment variables:
    - `NEXT_PUBLIC_API_URL` — your Render backend URL, e.g., `https://shukarsh-backend.onrender.com`
+   - `NEXT_PUBLIC_WHATSAPP_NUMBER` — the support number with its country code and no
+     plus sign, e.g., `919876543210`. Leave it out and the chat button stays hidden
+     rather than opening a chat with nobody.
 4. Deploy.
