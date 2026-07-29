@@ -146,7 +146,6 @@ export interface AnalyticsSummary {
     coverage: number;
   };
   funnel: {
-    bagsStarted: number;
     checkoutsStarted: number;
     paid: number;
     abandonRate: number;

@@ -170,10 +170,9 @@ export default function AdminAnalyticsPage() {
           </Panel>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Panel title="From bag to paid">
+            <Panel title="From checkout to paid">
               <ul className="space-y-3">
                 {[
-                  { label: "Bags started", value: summary.funnel.bagsStarted },
                   { label: "Reached checkout", value: summary.funnel.checkoutsStarted },
                   { label: "Paid", value: summary.funnel.paid },
                 ].map((step, index, all) => {
@@ -188,7 +187,9 @@ export default function AdminAnalyticsPage() {
                         <div
                           className={cn(
                             "h-full rounded-full",
-                            index === 2 ? "bg-mint-400" : "bg-gradient-to-r from-lavender-400 to-blush-300"
+                            index === all.length - 1
+                              ? "bg-mint-400"
+                              : "bg-gradient-to-r from-lavender-400 to-blush-300"
                           )}
                           style={{ width: `${Math.max(2, (step.value / widest) * 100)}%` }}
                         />
@@ -198,8 +199,8 @@ export default function AdminAnalyticsPage() {
                 })}
               </ul>
               <p className="mt-4 text-xs leading-relaxed text-muted">
-                {percent(summary.funnel.abandonRate)} of checkouts were never paid for. Counted from the first
-                thing put in a bag: visitors who never added anything are not tracked.
+                {percent(summary.funnel.abandonRate)} of checkouts were never paid for. The bag itself lives in
+                the customer&apos;s browser and never reaches us, so counting starts at checkout.
               </p>
             </Panel>
 
