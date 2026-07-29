@@ -191,6 +191,9 @@ export interface ReturnRequest {
   photos: string[];
   adminNote: string | null;
   refundAmount: number | null;
+  refundedAt: string | null;
+  /** Razorpay's own view: pending, processed or failed. */
+  refundStatus: string | null;
   items: ReturnItem[];
   decidedAt: string | null;
   receivedAt: string | null;
@@ -217,6 +220,8 @@ export interface ReturnWindow {
 /** A return in the admin queue, with the order context a decision needs. */
 export interface AdminReturn extends ReturnRequest {
   proposedRefund: number;
+  refundId: string | null;
+  refundError: string | null;
   order: {
     id: string;
     status: string;

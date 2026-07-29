@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import Image from "next/image";
-import { Check, Package, RotateCcw, X } from "lucide-react";
+import { Check, IndianRupee, Package, RotateCcw, X } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { textareaClass } from "../../../components/admin/FormField";
 import { Button } from "../../../components/ui/Button";
@@ -11,7 +11,7 @@ import { NoResultsArt } from "../../../components/ui/KawaiiArt";
 import { Modal } from "../../../components/ui/Modal";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useToast } from "../../../components/ui/Toast";
-import { getReturns, updateReturn } from "../../../lib/api";
+import { getReturns, refundReturn, updateReturn } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import type { AdminReturn, ReturnStatus } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
@@ -72,6 +72,7 @@ export default function AdminReturnsPage() {
   const [pending, setPending] = useState<{ request: AdminReturn; decision: Decision } | null>(null);
   const [note, setNote] = useState("");
   const [resellable, setResellable] = useState<Record<string, boolean>>({});
+  const [refunding, setRefunding] = useState<AdminReturn | null>(null);
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => setReloadKey((current) => current + 1), []);
@@ -98,6 +99,33 @@ export default function AdminReturnsPage() {
       active = false;
     };
   }, [token, tab, loadKey, toast]);
+
+  const sendRefund = async () => {
+    if (!token || !refunding) return;
+
+    setSaving(true);
+    try {
+      await refundReturn(token, refunding.id);
+      toast({
+        title: "Refund sent",
+        description: "The customer has been emailed the reference.",
+        tone: "success",
+      });
+      setRefunding(null);
+      reload();
+    } catch (err) {
+      // Left open on purpose. A failure here needs reading, and the reason is
+      // recorded on the return either way.
+      toast({
+        title: "The refund did not go through",
+        description: err instanceof Error ? err.message : "Please try again.",
+        tone: "error",
+      });
+      reload();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const start = (request: AdminReturn, decision: Decision) => {
     setPending({ request, decision });
@@ -276,6 +304,24 @@ export default function AdminReturnsPage() {
                   </p>
                 )}
 
+                {request.refundId && (
+                  <p className="mt-2 text-xs leading-relaxed text-mint-400">
+                    <span className="font-semibold">Refunded</span>
+                    {request.refundedAt ? ` on ${formatPlacedAt(request.refundedAt)}` : ""}
+                    {request.refundStatus === "pending" ? " · Razorpay still processing it" : ""}
+                    <span className="ml-1 block break-all font-mono text-[0.6875rem] text-faint sm:inline">
+                      {request.refundId}
+                    </span>
+                  </p>
+                )}
+
+                {request.refundError && !request.refundId && (
+                  <p className="mt-2 rounded-2xl bg-blush-50 p-3 text-xs leading-relaxed text-blush-500">
+                    <span className="font-semibold">Last refund attempt failed: </span>
+                    {request.refundError}
+                  </p>
+                )}
+
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
                   <div className="text-xs text-muted">
                     <span className="font-semibold text-ink">
@@ -310,12 +356,20 @@ export default function AdminReturnsPage() {
                         Parcel is back
                       </Button>
                     )}
-                    {request.status === "RECEIVED" && (
+                    {request.status === "RECEIVED" && request.outcome === "EXCHANGE" && (
                       <Button variant="dark" size="sm" onClick={() => start(request, "COMPLETED")}>
                         <RotateCcw className="h-4 w-4" strokeWidth={2.4} />
-                        {request.outcome === "REFUND" ? "Refunded" : "Replacement sent"}
+                        Replacement sent
                       </Button>
                     )}
+                    {request.outcome === "REFUND" &&
+                      request.refundId == null &&
+                      (request.status === "RECEIVED" || request.status === "COMPLETED") && (
+                        <Button variant="dark" size="sm" onClick={() => setRefunding(request)}>
+                          <IndianRupee className="h-4 w-4" strokeWidth={2.4} />
+                          Send {formatPrice(request.refundAmount ?? request.proposedRefund)} back
+                        </Button>
+                      )}
                   </div>
                 </div>
               </li>
@@ -323,6 +377,41 @@ export default function AdminReturnsPage() {
           })}
         </ul>
       )}
+
+      <Modal
+        open={refunding !== null}
+        onClose={() => setRefunding(null)}
+        label="Send the refund"
+        className="max-w-md"
+      >
+        {refunding && (
+          <div className="p-6 sm:p-7">
+            <h2 className="font-display text-xl text-ink">Send the money back?</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              This pays{" "}
+              <span className="font-bold text-ink">
+                {formatPrice(refunding.refundAmount ?? refunding.proposedRefund)}
+              </span>{" "}
+              to the card or account the order was paid with. It leaves your Razorpay balance now and
+              reaches the customer in five to seven working days.
+            </p>
+            <p className="mt-3 text-xs leading-relaxed text-muted">
+              Pressing this twice is safe. If it times out, try again rather than refunding by hand:
+              Razorpay recognises the repeat and will not pay twice.
+            </p>
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setRefunding(null)}>
+                Never mind
+              </Button>
+              <Button variant="dark" size="sm" loading={saving} onClick={sendRefund}>
+                <IndianRupee className="h-4 w-4" strokeWidth={2.4} />
+                Send it
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={pending !== null}

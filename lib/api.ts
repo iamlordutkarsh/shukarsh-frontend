@@ -499,6 +499,14 @@ export async function updateReturn(
   });
 }
 
+/**
+ * Sends the money back. Safe to call again after a timeout: the return id is the
+ * idempotency key at Razorpay's end, so a repeat cannot pay twice.
+ */
+export async function refundReturn(token: string, id: string): Promise<{ return: AdminReturn }> {
+  return adminFetcher<{ return: AdminReturn }>(`/returns/${id}/refund`, token, { method: "POST" });
+}
+
 export async function uploadProductImages(token: string, files: File[]): Promise<{ urls: string[] }> {
   const body = new FormData();
   files.forEach((file) => body.append("files", file));
