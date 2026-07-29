@@ -517,6 +517,20 @@ export async function uploadProductImages(token: string, files: File[]): Promise
   return response.json() as Promise<{ urls: string[] }>;
 }
 
+/**
+ * What was in an abandoned checkout, for the link in a recovery email. Signed
+ * rather than logged in, because the customer may not have an account.
+ */
+export async function recoverBag(
+  orderId: string,
+  token: string
+): Promise<{ items: { product: Product; quantity: number }[] }> {
+  return fetcher<{ items: { product: Product; quantity: number }[] }>(
+    `/orders/${orderId}/recover?token=${encodeURIComponent(token)}`,
+    { cache: "no-store" }
+  );
+}
+
 export async function getAnalytics(token: string, days: number): Promise<{ summary: AnalyticsSummary }> {
   return adminFetcher<{ summary: AnalyticsSummary }>(`/analytics/summary?days=${days}`, token, {
     cache: "no-store",

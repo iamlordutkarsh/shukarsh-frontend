@@ -14,6 +14,7 @@ interface CartContextType {
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  mergeIntoCart: (items: CartItem[]) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -56,13 +57,35 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [removeFromCart]
   );
 
+  /**
+   * Puts back anything the bag is missing, and leaves alone anything it already
+   * has. Following a recovery link on the same browser that abandoned the
+   * checkout would otherwise double every quantity in it.
+   */
+  const mergeIntoCart = useCallback((incoming: CartItem[]) => {
+    store.set((current) => {
+      const have = new Set(current.map((item) => item.product.id));
+      const missing = incoming.filter((item) => !have.has(item.product.id));
+      return missing.length > 0 ? [...current, ...missing] : current;
+    });
+  }, []);
+
   const clearCart = useCallback(() => store.set(EMPTY), []);
 
   const value = useMemo(() => {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-    return { items, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice };
-  }, [items, addToCart, removeFromCart, updateQuantity, clearCart]);
+    return {
+      items,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      mergeIntoCart,
+      clearCart,
+      totalItems,
+      totalPrice,
+    };
+  }, [items, addToCart, removeFromCart, updateQuantity, mergeIntoCart, clearCart]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
