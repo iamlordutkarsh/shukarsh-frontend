@@ -307,7 +307,15 @@ export async function verifyRazorpayPayment(payload: {
   });
 }
 
-function adminFetcher<T>(path: string, token: string, options?: RequestInit): Promise<T> {
+/**
+ * Signs the request as whoever holds the token.
+ *
+ * Nothing about it is admin-only, and half its callers are shopper endpoints:
+ * cancelling an order, changing a password, reading one's own order. The
+ * permission is decided by the API from the token, never by which helper was
+ * used here.
+ */
+function withToken<T>(path: string, token: string, options?: RequestInit): Promise<T> {
   return fetcher<T>(path, {
     ...options,
     headers: {
@@ -318,51 +326,51 @@ function adminFetcher<T>(path: string, token: string, options?: RequestInit): Pr
 }
 
 export async function createProduct(token: string, data: Partial<Product>): Promise<{ product: Product }> {
-  return adminFetcher<{ product: Product }>("/products", token, {
+  return withToken<{ product: Product }>("/products", token, {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
 export async function updateProduct(token: string, id: string, data: Partial<Product>): Promise<{ product: Product }> {
-  return adminFetcher<{ product: Product }>(`/products/${id}`, token, {
+  return withToken<{ product: Product }>(`/products/${id}`, token, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
 export async function deleteProduct(token: string, id: string): Promise<void> {
-  await adminFetcher<{ message: string }>(`/products/${id}`, token, {
+  await withToken<{ message: string }>(`/products/${id}`, token, {
     method: "DELETE",
   });
 }
 
 export async function createCategory(token: string, data: Partial<Category>): Promise<{ category: Category }> {
-  return adminFetcher<{ category: Category }>("/categories", token, {
+  return withToken<{ category: Category }>("/categories", token, {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
 export async function updateCategory(token: string, id: string, data: Partial<Category>): Promise<{ category: Category }> {
-  return adminFetcher<{ category: Category }>(`/categories/${id}`, token, {
+  return withToken<{ category: Category }>(`/categories/${id}`, token, {
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
 export async function deleteCategory(token: string, id: string): Promise<void> {
-  await adminFetcher<{ message: string }>(`/categories/${id}`, token, {
+  await withToken<{ message: string }>(`/categories/${id}`, token, {
     method: "DELETE",
   });
 }
 
 export async function getOrders(token: string): Promise<{ orders: Order[] }> {
-  return adminFetcher<{ orders: Order[] }>("/orders", token, { cache: "no-store" });
+  return withToken<{ orders: Order[] }>("/orders", token, { cache: "no-store" });
 }
 
 export async function updateOrderStatus(token: string, id: string, status: string): Promise<{ order: Order }> {
-  return adminFetcher<{ order: Order }>(`/orders/${id}/status`, token, {
+  return withToken<{ order: Order }>(`/orders/${id}/status`, token, {
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
@@ -372,7 +380,7 @@ export async function getOrderCourierOptions(
   token: string,
   id: string
 ): Promise<{ serviceable: boolean; options: CourierOption[]; weightKg: number }> {
-  return adminFetcher<{ serviceable: boolean; options: CourierOption[]; weightKg: number }>(
+  return withToken<{ serviceable: boolean; options: CourierOption[]; weightKg: number }>(
     `/logistics/orders/${id}/rates`,
     token,
     { cache: "no-store" }
@@ -380,7 +388,7 @@ export async function getOrderCourierOptions(
 }
 
 export async function shipOrder(token: string, id: string, courierId?: number): Promise<{ order: Order }> {
-  return adminFetcher<{ order: Order }>(`/logistics/orders/${id}/ship`, token, {
+  return withToken<{ order: Order }>(`/logistics/orders/${id}/ship`, token, {
     method: "POST",
     body: JSON.stringify(courierId ? { courierId } : {}),
   });
@@ -395,7 +403,7 @@ export interface SyncResult {
 }
 
 export async function syncTracking(token: string): Promise<SyncResult> {
-  return adminFetcher<SyncResult>("/logistics/sync", token, { method: "POST" });
+  return withToken<SyncResult>("/logistics/sync", token, { method: "POST" });
 }
 
 export async function setOrderTracking(
@@ -403,51 +411,51 @@ export async function setOrderTracking(
   id: string,
   data: { awb: string; courierName?: string; trackingUrl?: string }
 ): Promise<{ order: Order }> {
-  return adminFetcher<{ order: Order }>(`/logistics/orders/${id}/tracking`, token, {
+  return withToken<{ order: Order }>(`/logistics/orders/${id}/tracking`, token, {
     method: "PATCH",
     body: JSON.stringify(data),
   });
 }
 
 export async function schedulePickup(token: string, id: string, date?: string): Promise<{ shipment: Shipment }> {
-  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/pickup`, token, {
+  return withToken<{ shipment: Shipment }>(`/logistics/orders/${id}/pickup`, token, {
     method: "POST",
     body: JSON.stringify(date ? { date } : {}),
   });
 }
 
 export async function generateOrderInvoice(token: string, id: string): Promise<{ shipment: Shipment }> {
-  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/invoice`, token, { method: "POST" });
+  return withToken<{ shipment: Shipment }>(`/logistics/orders/${id}/invoice`, token, { method: "POST" });
 }
 
 export async function generateOrderManifest(token: string, id: string): Promise<{ shipment: Shipment }> {
-  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/manifest`, token, { method: "POST" });
+  return withToken<{ shipment: Shipment }>(`/logistics/orders/${id}/manifest`, token, { method: "POST" });
 }
 
 export async function cancelOrderShipment(token: string, id: string): Promise<{ shipment: Shipment }> {
-  return adminFetcher<{ shipment: Shipment }>(`/logistics/orders/${id}/cancel-shipment`, token, { method: "POST" });
+  return withToken<{ shipment: Shipment }>(`/logistics/orders/${id}/cancel-shipment`, token, { method: "POST" });
 }
 
 export async function getOrder(token: string, id: string): Promise<{ order: Order }> {
-  return adminFetcher<{ order: Order }>(`/orders/${id}`, token, { cache: "no-store" });
+  return withToken<{ order: Order }>(`/orders/${id}`, token, { cache: "no-store" });
 }
 
 export async function changePassword(
   token: string,
   payload: { currentPassword: string; newPassword: string }
 ): Promise<{ message: string }> {
-  return adminFetcher<{ message: string }>("/auth/change-password", token, {
+  return withToken<{ message: string }>("/auth/change-password", token, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export async function cancelOrder(token: string, id: string): Promise<{ order: Order }> {
-  return adminFetcher<{ order: Order }>(`/orders/${id}/cancel`, token, { method: "POST" });
+  return withToken<{ order: Order }>(`/orders/${id}/cancel`, token, { method: "POST" });
 }
 
 export async function trackOrder(token: string, id: string): Promise<{ tracking: Tracking | null }> {
-  return adminFetcher<{ tracking: Tracking | null }>(`/logistics/orders/${id}/track`, token, { cache: "no-store" });
+  return withToken<{ tracking: Tracking | null }>(`/logistics/orders/${id}/track`, token, { cache: "no-store" });
 }
 
 export async function requestReturn(
@@ -461,7 +469,7 @@ export async function requestReturn(
     items: { orderItemId: string; quantity: number }[];
   }
 ): Promise<{ return: ReturnRequest }> {
-  return adminFetcher<{ return: ReturnRequest }>(`/orders/${orderId}/returns`, token, {
+  return withToken<{ return: ReturnRequest }>(`/orders/${orderId}/returns`, token, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -472,7 +480,7 @@ export async function withdrawReturn(
   orderId: string,
   returnId: string
 ): Promise<{ return: ReturnRequest }> {
-  return adminFetcher<{ return: ReturnRequest }>(
+  return withToken<{ return: ReturnRequest }>(
     `/orders/${orderId}/returns/${returnId}/withdraw`,
     token,
     { method: "POST" }
@@ -481,7 +489,7 @@ export async function withdrawReturn(
 
 export async function getReturns(token: string, status?: ReturnStatus): Promise<{ returns: AdminReturn[] }> {
   const query = status ? `?status=${status}` : "";
-  return adminFetcher<{ returns: AdminReturn[] }>(`/returns${query}`, token, { cache: "no-store" });
+  return withToken<{ returns: AdminReturn[] }>(`/returns${query}`, token, { cache: "no-store" });
 }
 
 export async function updateReturn(
@@ -493,7 +501,7 @@ export async function updateReturn(
     items?: { orderItemId: string; resellable: boolean }[];
   }
 ): Promise<{ return: AdminReturn }> {
-  return adminFetcher<{ return: AdminReturn }>(`/returns/${id}`, token, {
+  return withToken<{ return: AdminReturn }>(`/returns/${id}`, token, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -504,7 +512,7 @@ export async function updateReturn(
  * idempotency key at Razorpay's end, so a repeat cannot pay twice.
  */
 export async function refundReturn(token: string, id: string): Promise<{ return: AdminReturn }> {
-  return adminFetcher<{ return: AdminReturn }>(`/returns/${id}/refund`, token, { method: "POST" });
+  return withToken<{ return: AdminReturn }>(`/returns/${id}/refund`, token, { method: "POST" });
 }
 
 export async function uploadProductImages(token: string, files: File[]): Promise<{ urls: string[] }> {
@@ -540,7 +548,7 @@ export async function recoverBag(
 }
 
 export async function getAnalytics(token: string, days: number): Promise<{ summary: AnalyticsSummary }> {
-  return adminFetcher<{ summary: AnalyticsSummary }>(`/analytics/summary?days=${days}`, token, {
+  return withToken<{ summary: AnalyticsSummary }>(`/analytics/summary?days=${days}`, token, {
     cache: "no-store",
   });
 }
@@ -554,7 +562,7 @@ export async function adjustStock(
   productId: string,
   payload: { delta: number; reason: ManualStockReason; note?: string }
 ): Promise<{ product: Product }> {
-  return adminFetcher<{ product: Product }>(`/products/${productId}/stock`, token, {
+  return withToken<{ product: Product }>(`/products/${productId}/stock`, token, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -565,7 +573,7 @@ export async function getStockMoves(
   productId: string,
   limit = 30
 ): Promise<{ moves: StockMove[] }> {
-  return adminFetcher<{ moves: StockMove[] }>(`/products/${productId}/stock-moves?limit=${limit}`, token, {
+  return withToken<{ moves: StockMove[] }>(`/products/${productId}/stock-moves?limit=${limit}`, token, {
     cache: "no-store",
   });
 }
@@ -590,33 +598,33 @@ export async function uploadReturnPhotos(token: string, files: File[]): Promise<
 }
 
 export async function deleteProductImage(token: string, url: string): Promise<{ removed: boolean }> {
-  return adminFetcher<{ removed: boolean }>("/uploads", token, {
+  return withToken<{ removed: boolean }>("/uploads", token, {
     method: "DELETE",
     body: JSON.stringify({ url }),
   });
 }
 
 export async function getUploadConfig(token: string): Promise<{ enabled: boolean; maxFileSize: number; maxFiles: number }> {
-  return adminFetcher<{ enabled: boolean; maxFileSize: number; maxFiles: number }>("/uploads/config", token);
+  return withToken<{ enabled: boolean; maxFileSize: number; maxFiles: number }>("/uploads/config", token);
 }
 
 export async function getWishlist(token: string): Promise<{ products: Product[] }> {
-  return adminFetcher<{ products: Product[] }>("/wishlist", token, { cache: "no-store" });
+  return withToken<{ products: Product[] }>("/wishlist", token, { cache: "no-store" });
 }
 
 export async function addToWishlist(token: string, productId: string): Promise<{ products: Product[] }> {
-  return adminFetcher<{ products: Product[] }>("/wishlist", token, {
+  return withToken<{ products: Product[] }>("/wishlist", token, {
     method: "POST",
     body: JSON.stringify({ productId }),
   });
 }
 
 export async function removeFromWishlist(token: string, productId: string): Promise<{ products: Product[] }> {
-  return adminFetcher<{ products: Product[] }>(`/wishlist/${productId}`, token, { method: "DELETE" });
+  return withToken<{ products: Product[] }>(`/wishlist/${productId}`, token, { method: "DELETE" });
 }
 
 export async function mergeWishlist(token: string, productIds: string[]): Promise<{ products: Product[] }> {
-  return adminFetcher<{ products: Product[] }>("/wishlist/merge", token, {
+  return withToken<{ products: Product[] }>("/wishlist/merge", token, {
     method: "POST",
     body: JSON.stringify({ productIds }),
   });
