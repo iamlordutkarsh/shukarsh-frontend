@@ -13,6 +13,7 @@ import { ShareButton } from "../../../components/product/ShareButton";
 import { DeliveryCheck } from "../../../components/product/DeliveryCheck";
 import { ProductCard } from "../../../components/product/ProductCard";
 import { ProductGallery } from "../../../components/product/ProductGallery";
+import { ReviewForm } from "../../../components/product/ReviewForm";
 import { ReviewList } from "../../../components/product/ReviewList";
 import { RatingLine } from "../../../components/product/Stars";
 import { JsonLd } from "../../../components/seo/JsonLd";
@@ -75,7 +76,7 @@ async function RelatedProducts({ categoryId, excludeId }: { categoryId: string; 
   );
 }
 
-async function Reviews({ productId }: { productId: string }) {
+async function Reviews({ productId, productName }: { productId: string; productName: string }) {
   // An outage in the reviews endpoint must not take the product page with it.
   // Somebody trying to buy something cares about the buy button, not the
   // opinions underneath it.
@@ -89,6 +90,7 @@ async function Reviews({ productId }: { productId: string }) {
       <Reveal>
         <ReviewList reviews={data.reviews} summary={data.summary} />
       </Reveal>
+      <ReviewForm productId={productId} productName={productName} />
     </section>
   );
 }
@@ -268,7 +270,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
 
-      <Reviews productId={product.id} />
+      <Reviews productId={product.id} productName={product.name} />
 
       <Suspense fallback={<ProductGridSkeleton count={4} className="section-shell pt-20" />}>
         <RelatedProducts categoryId={product.categoryId} excludeId={product.id} />
