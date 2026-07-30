@@ -62,8 +62,11 @@ function amount(value: number): string {
  * is in stock, which is what turns a plain blue link into a listing with a figure
  * next to it.
  *
- * Deliberately not claiming a rating. There are no reviews yet, and inventing
- * stars is both a lie and the fastest way to lose every rich result on the
+ * The rating is included only when real reviews exist, and only because they
+ * cannot be manufactured: the API accepts a review solely from a customer the
+ * shop has delivered to, and a review taken down is out of the average as well
+ * as out of the list. Publishing stars off a set the shop could curate would be
+ * both a lie to shoppers and the fastest way to lose every rich result on the
  * domain.
  *
  * Delivery and returns are left out too. Both are real policies, but the shipping
@@ -87,6 +90,20 @@ export function productJsonLd(product: Product): Record<string, unknown> {
     sku: product.id.slice(0, 8).toUpperCase(),
     brand: { "@type": "Brand", name: SITE_NAME },
     category: product.category?.name,
+    // Both guards matter. An absent rating means the response did not count
+    // reviews rather than that there are none, and a count of zero with an
+    // average of null would be rejected as malformed.
+    ...(product.rating && product.rating.count > 0 && product.rating.average != null
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: product.rating.average.toFixed(1),
+            reviewCount: product.rating.count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
     offers: {
       "@type": "Offer",
       url,
