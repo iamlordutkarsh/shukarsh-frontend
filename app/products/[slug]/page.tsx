@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, PackageCheck, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { Suspense } from "react";
-import { getProduct, getProducts } from "../../../lib/api";
+import { getProduct, getProducts, getReviews } from "../../../lib/api";
 import { discountPercent, formatPrice } from "../../../lib/utils";
 import { isLowStock } from "../../../lib/inventory";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
@@ -13,6 +13,8 @@ import { ShareButton } from "../../../components/product/ShareButton";
 import { DeliveryCheck } from "../../../components/product/DeliveryCheck";
 import { ProductCard } from "../../../components/product/ProductCard";
 import { ProductGallery } from "../../../components/product/ProductGallery";
+import { ReviewList } from "../../../components/product/ReviewList";
+import { RatingLine } from "../../../components/product/Stars";
 import { JsonLd } from "../../../components/seo/JsonLd";
 import { breadcrumbJsonLd, openGraphFor, productJsonLd } from "../../../lib/seo";
 import { Accordion } from "../../../components/ui/Accordion";
@@ -69,6 +71,24 @@ async function RelatedProducts({ categoryId, excludeId }: { categoryId: string; 
           </RevealItem>
         ))}
       </RevealGroup>
+    </section>
+  );
+}
+
+async function Reviews({ productId }: { productId: string }) {
+  // An outage in the reviews endpoint must not take the product page with it.
+  // Somebody trying to buy something cares about the buy button, not the
+  // opinions underneath it.
+  const data = await getReviews(productId, { limit: 10 }).catch(() => ({
+    reviews: [],
+    summary: { count: 0, average: null },
+  }));
+
+  return (
+    <section className="section-shell pt-20">
+      <Reveal>
+        <ReviewList reviews={data.reviews} summary={data.summary} />
+      </Reveal>
     </section>
   );
 }
@@ -168,6 +188,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 <ShareButton name={product.name} />
               </div>
 
+              {/* Absent rating means this response did not count them, which is
+                  not the same as nobody having reviewed, so nothing is drawn
+                  either way until there is a real number to draw. */}
+              {product.rating && product.rating.count > 0 && product.rating.average != null && (
+                <a href="#reviews" className="inline-flex w-fit rounded-full transition-opacity hover:opacity-70">
+                  <RatingLine average={product.rating.average} count={product.rating.count} />
+                </a>
+              )}
+
               <div className="flex flex-wrap items-baseline gap-3">
                 <span className="text-3xl font-bold tracking-tight text-ink">{formatPrice(product.price)}</span>
                 {comparePrice && comparePrice > product.price && (
@@ -238,6 +267,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </div>
         </div>
       </div>
+
+      <Reviews productId={product.id} />
 
       <Suspense fallback={<ProductGridSkeleton count={4} className="section-shell pt-20" />}>
         <RelatedProducts categoryId={product.categoryId} excludeId={product.id} />
