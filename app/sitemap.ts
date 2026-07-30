@@ -73,6 +73,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.9,
     },
+    // Rarely change, but they are the pages a shopper checks before trusting a
+    // shop they have not bought from, so they are worth having indexed.
+    ...["/contact", "/shipping", "/refunds", "/terms", "/privacy"].map((path) => ({
+      url: absolute(path),
+      changeFrequency: "yearly" as const,
+      priority: 0.4,
+    })),
     ...categories.map((category) => {
       const touched = categoryTouched.get(category.id);
       return {

@@ -98,7 +98,7 @@ export function Footer() {
           </div>
         </Reveal>
 
-        <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_repeat(4,1fr)]">
           <div className="space-y-4">
             <Logo />
             <p className="max-w-xs text-sm leading-relaxed text-muted">

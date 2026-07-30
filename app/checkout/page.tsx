@@ -605,6 +605,18 @@ export default function CheckoutPage() {
                   <Lock className="h-3.5 w-3.5" strokeWidth={2.4} />
                   Cards, UPI, wallets and net banking, all handled by Razorpay.
                 </p>
+                {/* One click from the pay button, which is where the rules want it. */}
+                <p className="mt-2 text-center text-xs leading-relaxed text-faint">
+                  Paying means you agree to our{" "}
+                  <Link href="/terms" className="font-semibold text-muted underline decoration-lavender-300 underline-offset-2">
+                    terms
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/refunds" className="font-semibold text-muted underline decoration-lavender-300 underline-offset-2">
+                    returns policy
+                  </Link>
+                  .
+                </p>
               </motion.div>
             </motion.form>
           </div>

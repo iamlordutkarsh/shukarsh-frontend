@@ -86,10 +86,20 @@ export const footerGroups: { title: string; links: NavHighlight[] }[] = [
   {
     title: "Help",
     links: [
-      { label: "Contact us", href: "mailto:hello@shukarsh.com" },
+      { label: "Contact us", href: "/contact" },
       { label: "Track your order", href: "/profile#orders" },
-      { label: "Sign in", href: "/login" },
-      { label: "Create account", href: "/register" },
+      { label: "Grievances", href: "/contact#if-something-goes-wrong" },
+    ],
+  },
+  {
+    // On every page rather than tucked away one level down: the Consumer
+    // Protection (E-Commerce) Rules expect it, and the payment provider checks.
+    title: "Legal",
+    links: [
+      { label: "Terms & conditions", href: "/terms" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Returns & refunds", href: "/refunds" },
+      { label: "Delivery", href: "/shipping" },
     ],
   },
 ];
