@@ -13,6 +13,7 @@ import { cn, discountPercent, formatPrice } from "../../lib/utils";
 import { PastelTile } from "../ui/PastelTile";
 import { useToast } from "../ui/Toast";
 import { QuickView } from "./QuickView";
+import { Stars } from "./Stars";
 import { WishlistButton } from "./WishlistButton";
 
 interface ProductCardProps {
@@ -160,6 +161,18 @@ export function ProductCard({ product, priority = false, className }: ProductCar
             <h3 className="font-display text-[1.0625rem] leading-snug text-ink transition-colors duration-300 group-hover:text-lavender-700">
               <span className="line-clamp-2">{product.name}</span>
             </h3>
+            {/* Only where there is something to show. An empty row of grey stars
+                on every card says "nobody has bought this" across the whole
+                catalogue, which is worse than saying nothing. */}
+            {product.rating && product.rating.count > 0 && product.rating.average != null && (
+              <span className="flex items-center gap-1.5 pt-0.5">
+                <Stars value={product.rating.average} />
+                <span className="text-[0.6875rem] font-semibold text-muted">
+                  {product.rating.average.toFixed(1)} ({product.rating.count})
+                </span>
+              </span>
+            )}
+
             <div className="mt-auto flex items-baseline gap-2 pt-1.5">
               <span className="text-lg font-bold tracking-tight text-ink">{formatPrice(product.price)}</span>
               {product.comparePrice && product.comparePrice > product.price && (
