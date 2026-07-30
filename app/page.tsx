@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { FeaturedCollections } from "../components/home/FeaturedCollections";
 import { Hero } from "../components/home/Hero";
@@ -7,6 +8,12 @@ import { PromoBanner } from "../components/home/PromoBanner";
 import { Testimonials } from "../components/home/Testimonials";
 import { ValueProps } from "../components/home/ValueProps";
 import { CategoryGridSkeleton, ProductGridSkeleton, Skeleton } from "../components/ui/Skeleton";
+import { openGraphFor } from "../lib/seo";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: openGraphFor({ path: "/" }),
+};
 
 function SectionFallback({ children }: { children: React.ReactNode }) {
   return (

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getCategories, getProducts, type ProductSort } from "../../lib/api";
+import { openGraphFor } from "../../lib/seo";
 import { FilterBar } from "../../components/catalog/FilterBar";
 import { Pagination } from "../../components/catalog/Pagination";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
@@ -14,6 +15,15 @@ import { ProductGridSkeleton, Skeleton } from "../../components/ui/Skeleton";
 export const metadata: Metadata = {
   title: "Shop all",
   description: "Browse every pastel kitchen, clothing and press-on nail find in the Shukarsh shop.",
+  // Filters, sorts and pages all live on this URL as query strings, and each one
+  // is the same catalogue in a different order. They point back here rather than
+  // asking to be indexed as pages of their own.
+  alternates: { canonical: "/products" },
+  openGraph: openGraphFor({
+    path: "/products",
+    title: "Shop all",
+    description: "Browse every pastel kitchen, clothing and press-on nail find in the Shukarsh shop.",
+  }),
 };
 
 const sortKeys: ProductSort[] = ["newest", "oldest", "price-asc", "price-desc", "name"];

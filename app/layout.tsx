@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans, Quicksand } from "next/font/google";
 import "./globals.css";
 import { AnnouncementBar } from "../components/layout/AnnouncementBar";
+import { JsonLd } from "../components/seo/JsonLd";
 import { CartDrawer } from "../components/layout/CartDrawer";
 import { Footer } from "../components/layout/Footer";
 import { MobileMenu } from "../components/layout/MobileMenu";
@@ -12,6 +13,7 @@ import { SupportButton } from "../components/support/SupportButton";
 import { ToastProvider } from "../components/ui/Toast";
 import { AuthProvider } from "../lib/auth";
 import { CartProvider } from "../lib/cart";
+import { SITE_NAME, SITE_URL, organizationJsonLd, websiteJsonLd } from "../lib/seo";
 import { UIProvider } from "../lib/ui-store";
 import { WishlistProvider } from "../lib/wishlist";
 
@@ -35,18 +37,28 @@ const quicksand = Quicksand({
 });
 
 export const metadata: Metadata = {
+  // Without this, every relative canonical and share image resolves against
+  // nothing and Next quietly drops it. It is the one setting the rest of the
+  // metadata in this app depends on.
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Shukarsh — Kitchen, clothing & press-on nails",
     template: "%s · Shukarsh",
   },
   description:
     "Small-batch kitchen finds, soft everyday clothing and salon-grade press-on nails. Pastel picks, secure Razorpay checkout, tracked delivery across India.",
+  // No canonical here on purpose. Metadata is inherited, so one set on the root
+  // layout would have every page that does not override it claim to be a copy of
+  // the home page. Each page names its own.
   openGraph: {
     title: "Shukarsh — Kitchen, clothing & press-on nails",
     description:
       "Small-batch kitchen finds, soft everyday clothing and salon-grade press-on nails.",
     type: "website",
+    siteName: SITE_NAME,
+    locale: "en_IN",
   },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {
@@ -60,6 +72,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       className={`${jakarta.variable} ${fraunces.variable} ${quicksand.variable} h-full`}
     >
       <body className="flex min-h-full flex-col">
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <AuthProvider>
           <UIProvider>
             <WishlistProvider>

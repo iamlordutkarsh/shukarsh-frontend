@@ -32,6 +32,8 @@ export interface Product {
   categoryId: string;
   category: Category;
   createdAt: string;
+  /** When the shop last touched it, which is what the sitemap reports. */
+  updatedAt: string;
 }
 
 export interface User {
