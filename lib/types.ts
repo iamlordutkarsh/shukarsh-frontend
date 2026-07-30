@@ -34,6 +34,36 @@ export interface Product {
   createdAt: string;
   /** When the shop last touched it, which is what the sitemap reports. */
   updatedAt: string;
+  /**
+   * Only on shopper-facing reads. Undefined means this response did not count
+   * them, which is not the same as nobody having reviewed, so render nothing
+   * rather than an empty row of stars.
+   */
+  rating?: RatingSummary;
+}
+
+export interface RatingSummary {
+  count: number;
+  /** One decimal, or null when nobody has reviewed yet. */
+  average: number | null;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  rating: number;
+  comment: string | null;
+  /** A first name and a surname initial. Never the full name or the email. */
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Only ever sent for the shopper's own review, and to an admin. */
+  hiddenAt?: string | null;
+  hiddenReason?: string | null;
+}
+
+export interface AdminReview extends Review {
+  product: { id: string; name: string; slug: string };
 }
 
 export interface User {

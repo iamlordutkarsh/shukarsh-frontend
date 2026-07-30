@@ -1,5 +1,6 @@
 import {
   AdminReturn,
+  AdminReview,
   AnalyticsSummary,
   AppliedCoupon,
   Category,
@@ -8,10 +9,12 @@ import {
   ManualStockReason,
   Order,
   Product,
+  RatingSummary,
   ReturnOutcome,
   ReturnReason,
   ReturnRequest,
   ReturnStatus,
+  Review,
   Shipment,
   StockMove,
   Tracking,
@@ -513,6 +516,65 @@ export async function updateReturn(
  */
 export async function refundReturn(token: string, id: string): Promise<{ return: AdminReturn }> {
   return withToken<{ return: AdminReturn }>(`/returns/${id}/refund`, token, { method: "POST" });
+}
+
+/**
+ * Reviews for one product.
+ *
+ * Cached for the same minute as the catalogue, because this is read while
+ * rendering the product page and a no-store fetch there would make the whole
+ * page dynamic to keep one list fresh. The shopper who just posted is not left
+ * waiting on it: the form shows them their own review from the write response.
+ */
+export async function getReviews(
+  productId: string,
+  params?: { page?: number; limit?: number }
+): Promise<{ reviews: Review[]; summary: RatingSummary; pagination: { page: number; limit: number; total: number; pages: number } }> {
+  const search = new URLSearchParams({ productId });
+  if (params?.page) search.set("page", String(params.page));
+  if (params?.limit) search.set("limit", String(params.limit));
+
+  return fetcher(`/reviews?${search.toString()}`, { next: { revalidate: 60 } });
+}
+
+/** Whether this shopper may review the product, and what they already said. */
+export async function getMyReview(
+  token: string,
+  productId: string
+): Promise<{ canReview: boolean; review: Review | null }> {
+  return withToken(`/reviews/mine?productId=${encodeURIComponent(productId)}`, token, {
+    cache: "no-store",
+  });
+}
+
+export async function saveReview(
+  token: string,
+  payload: { productId: string; rating: number; comment?: string }
+): Promise<{ review: Review }> {
+  return withToken("/reviews", token, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export async function deleteReview(token: string, id: string): Promise<{ message: string }> {
+  return withToken(`/reviews/${id}`, token, { method: "DELETE" });
+}
+
+export async function getAllReviews(token: string): Promise<{ reviews: AdminReview[] }> {
+  return withToken("/reviews/admin/all", token, { cache: "no-store" });
+}
+
+export async function hideReview(
+  token: string,
+  id: string,
+  reason: string
+): Promise<{ review: AdminReview }> {
+  return withToken(`/reviews/${id}/hide`, token, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function unhideReview(token: string, id: string): Promise<{ review: AdminReview }> {
+  return withToken(`/reviews/${id}/unhide`, token, { method: "POST" });
 }
 
 export async function uploadProductImages(token: string, files: File[]): Promise<{ urls: string[] }> {
