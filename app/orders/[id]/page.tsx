@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, CreditCard, ExternalLink, MapPin, Package, Truck, XCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, ExternalLink, MapPin, Package, Star, Truck, XCircle } from "lucide-react";
 import { cancelOrder, getOrder, trackOrder } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import type { Order, Tracking } from "../../../lib/types";
@@ -152,6 +152,9 @@ export default function OrderDetailPage() {
   // Only while the shop has not started on it. After approval someone is
   // packing, so calling it off has to go through them.
   const canCancel = order.status === "PENDING";
+  // The same condition the API enforces on a review. Offering the link on a
+  // parcel that is still moving would send someone to a form that refuses them.
+  const canReview = order.status === "DELIVERED";
   const chat = orderSupportLink(order.id);
 
   return (
@@ -326,6 +329,16 @@ export default function OrderDetailPage() {
                   <span className="block text-xs text-muted">
                     Qty {item.quantity} · {formatPrice(item.price)} each
                   </span>
+
+                  {canReview && item.product?.slug && (
+                    <Link
+                      href={`/products/${item.product.slug}#write-review`}
+                      className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-lavender-600 transition-colors hover:text-lavender-700"
+                    >
+                      <Star className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      Write a review
+                    </Link>
+                  )}
                 </span>
                 <span className="shrink-0 text-sm font-bold text-ink">
                   {formatPrice(item.price * item.quantity)}

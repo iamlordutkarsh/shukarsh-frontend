@@ -90,7 +90,14 @@ async function Reviews({ productId, productName }: { productId: string; productN
       <Reveal>
         <ReviewList reviews={data.reviews} summary={data.summary} />
       </Reveal>
-      <ReviewForm productId={productId} productName={productName} />
+      {/* The anchor sits on this wrapper rather than inside the form, because
+          the form only appears once the browser has asked whether this shopper
+          is eligible. A link arriving at #write-review has to find something in
+          the server-rendered HTML or it lands at the top of the page and looks
+          like a dead link. */}
+      <div id="write-review" className="scroll-mt-28">
+        <ReviewForm productId={productId} productName={productName} />
+      </div>
     </section>
   );
 }
