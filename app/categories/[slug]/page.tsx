@@ -7,6 +7,8 @@ import type { Product } from "../../../lib/types";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { RevealGroup, RevealItem } from "../../../components/motion/Reveal";
 import { ProductCard } from "../../../components/product/ProductCard";
+import { JsonLd } from "../../../components/seo/JsonLd";
+import { breadcrumbJsonLd, collectionJsonLd, openGraphFor } from "../../../lib/seo";
 import { ButtonLink } from "../../../components/ui/Button";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { NoResultsArt } from "../../../components/ui/KawaiiArt";
@@ -23,9 +25,19 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
 
   if (!category) return { title: "Collection not found" };
 
+  const description = category.description ?? `Shop the ${category.name} collection at Shukarsh.`;
+  const path = `/categories/${category.slug}`;
+
   return {
     title: category.name,
-    description: category.description ?? `Shop the ${category.name} collection at Shukarsh.`,
+    description,
+    alternates: { canonical: path },
+    openGraph: openGraphFor({
+      path,
+      title: category.name,
+      description,
+      images: category.image ? [category.image] : [],
+    }),
   };
 }
 
@@ -51,6 +63,16 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="relative pb-20 pt-8">
+      <JsonLd
+        data={[
+          collectionJsonLd(category, products),
+          breadcrumbJsonLd([
+            { name: "Shop", path: "/products" },
+            { name: category.name, path: `/categories/${category.slug}` },
+          ]),
+        ]}
+      />
+
       <FloatingDecor className="h-[26rem] opacity-70" />
 
       <div className="section-shell relative">

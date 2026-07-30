@@ -13,6 +13,8 @@ import { ShareButton } from "../../../components/product/ShareButton";
 import { DeliveryCheck } from "../../../components/product/DeliveryCheck";
 import { ProductCard } from "../../../components/product/ProductCard";
 import { ProductGallery } from "../../../components/product/ProductGallery";
+import { JsonLd } from "../../../components/seo/JsonLd";
+import { breadcrumbJsonLd, openGraphFor, productJsonLd } from "../../../lib/seo";
 import { Accordion } from "../../../components/ui/Accordion";
 import { Pill } from "../../../components/ui/Pill";
 import { ProductGridSkeleton } from "../../../components/ui/Skeleton";
@@ -29,14 +31,22 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
   if (!product) return { title: "Product not found" };
 
+  const description = product.description?.slice(0, 160) ?? `Shop ${product.name} at Shukarsh.`;
+  const path = `/products/${product.slug}`;
+
   return {
     title: product.name,
-    description: product.description?.slice(0, 160) ?? `Shop ${product.name} at Shukarsh.`,
-    openGraph: {
+    description,
+    // A product is reachable from a category, a search and a share link, so it
+    // needs to name the one address that counts or the same page competes with
+    // itself in the index.
+    alternates: { canonical: path },
+    openGraph: openGraphFor({
+      path,
       title: product.name,
-      description: product.description?.slice(0, 160) ?? undefined,
-      images: product.images.length > 0 ? [product.images[0] as string] : undefined,
-    },
+      description,
+      images: product.images.slice(0, 1),
+    }),
   };
 }
 
@@ -95,6 +105,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <div className="relative pb-20 pt-8">
+      <JsonLd
+        data={[
+          productJsonLd(product),
+          // The same trail the visitor can see below, in the same order.
+          breadcrumbJsonLd([
+            { name: "Shop", path: "/products" },
+            { name: product.category.name, path: `/categories/${product.category.slug}` },
+            { name: product.name, path: `/products/${product.slug}` },
+          ]),
+        ]}
+      />
+
       <FloatingDecor className="h-[32rem] opacity-60" />
 
       <div className="section-shell relative">
