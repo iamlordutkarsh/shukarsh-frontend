@@ -12,6 +12,7 @@ import {
   Package,
   RotateCcw,
   ShoppingCart,
+  Star,
   Tags,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/coupons", label: "Coupons", icon: BadgePercent },
   { href: "/admin/returns", label: "Returns", icon: RotateCcw },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
 ] as const;
 
 interface AdminLayoutProps {
