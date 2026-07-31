@@ -49,7 +49,9 @@ function OrderThumbs({ order, muted }: { order: Order; muted: boolean }) {
 function reviewHref(order: Order): string {
   const slugs = new Set(order.items.map((item) => item.product?.slug).filter(Boolean));
   const only = slugs.size === 1 ? [...slugs][0] : null;
-  return only ? `/products/${only}#write-review` : `/orders/${order.id}`;
+  // The anchor matters. Landing at the top of an order and being left to find
+  // the review links reads as a button that did nothing.
+  return only ? `/products/${only}#write-review` : `/orders/${order.id}#write-review`;
 }
 
 /** One line per order, linking to the full detail page. */

@@ -299,11 +299,24 @@ export default function OrderDetailPage() {
           </motion.section>
         )}
 
-        <motion.section variants={fadeUp} className="mt-4 rounded-4xl bg-surface/90 p-5 shadow-soft sm:p-6 hairline">
+        <motion.section
+          id="write-review"
+          variants={fadeUp}
+          className="mt-4 scroll-mt-28 rounded-4xl bg-surface/90 p-5 shadow-soft sm:p-6 hairline"
+        >
           <h2 className="flex items-center gap-2 font-display text-lg text-ink">
             <Package className="h-4 w-4 text-lavender-500" strokeWidth={2.4} />
             What you ordered
           </h2>
+
+          {/* An order of several things cannot be reviewed in one go, so the
+              link from order history lands here and this says which choice is
+              being asked for. */}
+          {canReview && (
+            <p className="mt-1.5 text-xs text-muted">
+              Pick the one you want to talk about. You can review each separately.
+            </p>
+          )}
 
           <ul className="mt-4 space-y-3.5">
             {order.items.map((item) => (
