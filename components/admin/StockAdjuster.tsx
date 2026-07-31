@@ -5,6 +5,7 @@ import { History, Minus, Plus } from "lucide-react";
 import { adjustStock, getStockMoves } from "../../lib/api";
 import { defaultReasonFor, manualReasons, reorderLevel, stockReasonLabel } from "../../lib/inventory";
 import type { ManualStockReason, Product, StockMove } from "../../lib/types";
+import { variantName } from "../../lib/variants";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
@@ -52,6 +53,25 @@ export function StockAdjuster({
   const [saving, setSaving] = useState(false);
   const [moves, setMoves] = useState<StockMove[] | null>(null);
 
+  /**
+   * Which shelf is being counted. Once a product has options the total is only
+   * their sum, so an adjustment that does not name one has nowhere to land and
+   * the API refuses it. One option is not a choice, so it is made for them.
+   */
+  const cells = (product.variants ?? []).filter((variant) => variant.isActive);
+  const [variantId, setVariantId] = useState<string | null>(
+    cells.length === 1 ? cells[0].id : null
+  );
+
+  const cellName = (variant: Product["variants"][number]) =>
+    variantName(
+      (product.colours ?? []).find((colour) => colour.id === variant.colourId)?.name ?? null,
+      variant.label
+    ) ?? product.name;
+
+  const chosen = cells.find((cell) => cell.id === variantId) ?? null;
+  const needsCell = cells.length > 0 && !chosen;
+
   const delta = amount * direction;
 
   // Nothing is reset here: the products list mounts this fresh for whichever
@@ -82,7 +102,7 @@ export function StockAdjuster({
   };
 
   const save = async () => {
-    if (amount < 1) return;
+    if (amount < 1 || needsCell) return;
 
     setSaving(true);
     try {
@@ -90,12 +110,17 @@ export function StockAdjuster({
         delta,
         reason,
         note: note.trim() || undefined,
+        ...(variantId ? { variantId } : {}),
       });
+
+      const after = variantId
+        ? (updated.variants ?? []).find((variant) => variant.id === variantId)?.stock
+        : updated.stock;
 
       onSaved(updated);
       toast({
         title: "Stock updated",
-        description: `${product.name} now shows ${updated.stock}.`,
+        description: `${chosen ? cellName(chosen) : product.name} now shows ${after ?? updated.stock}.`,
         tone: "success",
       });
       onClose();
@@ -119,6 +144,31 @@ export function StockAdjuster({
         </p>
 
         <div className="mt-6 space-y-5">
+          {cells.length > 0 && (
+            <div className="space-y-2">
+              <span className={labelClass}>Which one</span>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Which option">
+                {cells.map((cell) => (
+                  <button
+                    key={cell.id}
+                    type="button"
+                    aria-pressed={cell.id === variantId}
+                    onClick={() => setVariantId(cell.id)}
+                    className={cn(
+                      "rounded-2xl px-3.5 py-2 text-sm font-bold transition-colors",
+                      cell.id === variantId
+                        ? "bg-ink text-white shadow-soft"
+                        : "bg-lavender-50 text-lavender-700 hover:bg-lavender-100"
+                    )}
+                  >
+                    {cellName(cell)}
+                    <span className="ml-1.5 text-xs font-semibold opacity-70">{cell.stock}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <span className={labelClass}>What changed</span>
             <div className="flex flex-wrap items-center gap-2">
@@ -203,7 +253,7 @@ export function StockAdjuster({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="dark" onClick={save} loading={saving} disabled={amount < 1}>
+            <Button variant="dark" onClick={save} loading={saving} disabled={amount < 1 || needsCell}>
               {direction === 1 ? `Add ${amount}` : `Take away ${amount}`}
             </Button>
             <Button variant="ghost" onClick={onClose}>
