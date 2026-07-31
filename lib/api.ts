@@ -532,6 +532,21 @@ export async function refundReturn(token: string, id: string): Promise<{ return:
 }
 
 /**
+ * Writes down a refund the shop already paid by hand, for a cash order with no
+ * Razorpay payment behind it. Moves no money itself.
+ */
+export async function recordManualRefund(
+  token: string,
+  id: string,
+  reference: string
+): Promise<{ return: AdminReturn }> {
+  return withToken<{ return: AdminReturn }>(`/returns/${id}/refund/manual`, token, {
+    method: "POST",
+    body: JSON.stringify({ reference }),
+  });
+}
+
+/**
  * Reviews for one product.
  *
  * Cached for the same minute as the catalogue, because this is read while

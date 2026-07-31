@@ -4,14 +4,14 @@ import { useCallback, useEffect, useId, useState } from "react";
 import Image from "next/image";
 import { Check, IndianRupee, Package, RotateCcw, X } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
-import { textareaClass } from "../../../components/admin/FormField";
+import { inputClass, textareaClass } from "../../../components/admin/FormField";
 import { Button } from "../../../components/ui/Button";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { NoResultsArt } from "../../../components/ui/KawaiiArt";
 import { Modal } from "../../../components/ui/Modal";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useToast } from "../../../components/ui/Toast";
-import { getReturns, refundReturn, updateReturn } from "../../../lib/api";
+import { getReturns, recordManualRefund, refundReturn, updateReturn } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import type { AdminReturn, ReturnStatus } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
@@ -73,6 +73,8 @@ export default function AdminReturnsPage() {
   const [note, setNote] = useState("");
   const [resellable, setResellable] = useState<Record<string, boolean>>({});
   const [refunding, setRefunding] = useState<AdminReturn | null>(null);
+  /** Only used for a cash order, where the money has already left by hand. */
+  const [reference, setReference] = useState("");
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => setReloadKey((current) => current + 1), []);
@@ -103,11 +105,25 @@ export default function AdminReturnsPage() {
   const sendRefund = async () => {
     if (!token || !refunding) return;
 
+    // No Razorpay payment means the order was paid in cash, so there is nothing
+    // to reverse: the shop has already sent the money and this only records it.
+    const byHand = refunding.order.razorpayPaymentId == null;
+    if (byHand && reference.trim().length < 4) {
+      toast({
+        title: "Enter the reference",
+        description: "The UPI or bank reference for the payment you made.",
+        tone: "error",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
-      await refundReturn(token, refunding.id);
+      if (byHand) await recordManualRefund(token, refunding.id, reference.trim());
+      else await refundReturn(token, refunding.id);
+      setReference("");
       toast({
-        title: "Refund sent",
+        title: byHand ? "Refund recorded" : "Refund sent",
         description: "The customer has been emailed the reference.",
         tone: "success",
       });
@@ -384,33 +400,73 @@ export default function AdminReturnsPage() {
         label="Send the refund"
         className="max-w-md"
       >
-        {refunding && (
-          <div className="p-6 sm:p-7">
-            <h2 className="font-display text-xl text-ink">Send the money back?</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              This pays{" "}
-              <span className="font-bold text-ink">
-                {formatPrice(refunding.refundAmount ?? refunding.proposedRefund)}
-              </span>{" "}
-              to the card or account the order was paid with. It leaves your Razorpay balance now and
-              reaches the customer in five to seven working days.
-            </p>
-            <p className="mt-3 text-xs leading-relaxed text-muted">
-              Pressing this twice is safe. If it times out, try again rather than refunding by hand:
-              Razorpay recognises the repeat and will not pay twice.
-            </p>
+        {refunding &&
+          (refunding.order.razorpayPaymentId == null ? (
+            <div className="p-6 sm:p-7">
+              <h2 className="font-display text-xl text-ink">Record the refund you sent</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                This order was paid in cash, so there is no payment to reverse. Send{" "}
+                <span className="font-bold text-ink">
+                  {formatPrice(refunding.refundAmount ?? refunding.proposedRefund)}
+                </span>{" "}
+                to the customer over UPI first, then put the reference here so your records match your
+                bank.
+              </p>
 
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setRefunding(null)}>
-                Never mind
-              </Button>
-              <Button variant="dark" size="sm" loading={saving} onClick={sendRefund}>
-                <IndianRupee className="h-4 w-4" strokeWidth={2.4} />
-                Send it
-              </Button>
+              <div className="mt-4 space-y-2">
+                <label
+                  htmlFor={`${uid}-reference`}
+                  className="block text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-faint"
+                >
+                  UPI or bank reference
+                </label>
+                <input
+                  id={`${uid}-reference`}
+                  value={reference}
+                  onChange={(event) => setReference(event.target.value)}
+                  placeholder="425913004821"
+                  maxLength={64}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setRefunding(null)}>
+                  Never mind
+                </Button>
+                <Button variant="dark" size="sm" loading={saving} onClick={sendRefund}>
+                  <IndianRupee className="h-4 w-4" strokeWidth={2.4} />
+                  Record it
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="p-6 sm:p-7">
+              <h2 className="font-display text-xl text-ink">Send the money back?</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                This pays{" "}
+                <span className="font-bold text-ink">
+                  {formatPrice(refunding.refundAmount ?? refunding.proposedRefund)}
+                </span>{" "}
+                to the card or account the order was paid with. It leaves your Razorpay balance now and
+                reaches the customer in five to seven working days.
+              </p>
+              <p className="mt-3 text-xs leading-relaxed text-muted">
+                Pressing this twice is safe. If it times out, try again rather than refunding by hand:
+                Razorpay recognises the repeat and will not pay twice.
+              </p>
+
+              <div className="mt-5 flex flex-wrap justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setRefunding(null)}>
+                  Never mind
+                </Button>
+                <Button variant="dark" size="sm" loading={saving} onClick={sendRefund}>
+                  <IndianRupee className="h-4 w-4" strokeWidth={2.4} />
+                  Send it
+                </Button>
+              </div>
+            </div>
+          ))}
       </Modal>
 
       <Modal
