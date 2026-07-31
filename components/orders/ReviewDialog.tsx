@@ -8,14 +8,9 @@ import { StarPicker } from "../product/StarPicker";
 import { PastelTile } from "../ui/PastelTile";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+import type { ReviewTarget } from "./review-targets";
 
 const MAX_COMMENT = 1200;
-
-export interface ReviewTarget {
-  productId: string;
-  name: string;
-  image: string | null;
-}
 
 /**
  * Reviewing without leaving the order.

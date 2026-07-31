@@ -19,7 +19,8 @@ import { OopsArt } from "../../../components/ui/KawaiiArt";
 import { PastelTile } from "../../../components/ui/PastelTile";
 import { Skeleton, SkeletonText } from "../../../components/ui/Skeleton";
 import { ReturnPanel } from "../../../components/orders/ReturnPanel";
-import { ReviewDialog, type ReviewTarget } from "../../../components/orders/ReviewDialog";
+import { ReviewDialog } from "../../../components/orders/ReviewDialog";
+import { nextUnreviewed, reviewTargetsOf, unreviewed } from "../../../components/orders/review-targets";
 import { Stars } from "../../../components/product/Stars";
 import { WhatsAppIcon } from "../../../components/support/WhatsAppIcon";
 import { orderSupportLink } from "../../../lib/support";
@@ -187,32 +188,8 @@ export default function OrderDetailPage() {
   const canReview = order.status === "DELIVERED";
   const chat = orderSupportLink(order.id);
 
-  // One entry per product, not per line: the same thing bought twice is still
-  // one opinion, and the API stores one row per person per product.
-  const reviewTargets: ReviewTarget[] = canReview
-    ? [...new Map(
-        order.items.map((item) => [
-          item.productId,
-          {
-            productId: item.productId,
-            name: item.product?.name ?? "This item",
-            image: item.product?.images?.[0] ?? null,
-          },
-        ])
-      ).values()]
-    : [];
-
+  const reviewTargets = canReview ? reviewTargetsOf(order) : [];
   const openTarget = reviewTargets.find((target) => target.productId === reviewing) ?? null;
-
-  /** The next item in this order nobody has said anything about yet. */
-  const nextUnreviewed = (after: string) => {
-    const from = reviewTargets.findIndex((target) => target.productId === after);
-    return (
-      reviewTargets.slice(from + 1).find((target) => !myReviews[target.productId]) ??
-      reviewTargets.find((target) => target.productId !== after && !myReviews[target.productId]) ??
-      null
-    );
-  };
 
   return (
     <div className="relative pb-20 pt-10">
@@ -542,13 +519,15 @@ export default function OrderDetailPage() {
           existing={myReviews[openTarget.productId] ?? null}
           token={token}
           remaining={
-            reviewTargets.filter(
-              (target) => target.productId !== openTarget.productId && !myReviews[target.productId]
+            unreviewed(reviewTargets, myReviews).filter(
+              (target) => target.productId !== openTarget.productId
             ).length
           }
           onClose={() => setReviewing(null)}
           onSaved={(review) => setMyReviews((current) => ({ ...current, [review.productId]: review }))}
-          onNext={() => setReviewing(nextUnreviewed(openTarget.productId)?.productId ?? null)}
+          onNext={() =>
+            setReviewing(nextUnreviewed(reviewTargets, myReviews, openTarget.productId)?.productId ?? null)
+          }
         />
       )}
     </div>
