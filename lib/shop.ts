@@ -51,7 +51,7 @@ export const SHOP: ShopDetails = {
   // policy. Two places claiming different dispatch times is the drift these
   // pages exist to prevent.
   dispatchWindow: "1 to 2 working days",
-  grievanceName: "",
+  grievanceName: "Shubhika Bartaria",
   grievanceDesignation: "Proprietor",
   // A one-person shop answers grievances on the same line it answers everything
   // else. Split these out if that ever stops being true.

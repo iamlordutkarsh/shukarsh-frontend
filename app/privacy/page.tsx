@@ -19,6 +19,19 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <PolicyPage title={TITLE} intro={INTRO}>
+      <Section title="Who holds it">
+        <Para>
+          {detail(SHOP.legalName)}
+          {SHOP.entityType.trim() ? `, ${SHOP.entityType.toLowerCase()}` : ""}, decides what happens to
+          the details on this page and is responsible for them. Our registered address, phone number and
+          the name of the person who answers privacy questions are all on the{" "}
+          <Link href="/contact" className="font-semibold text-lavender-600 hover:text-lavender-700">
+            contact page
+          </Link>
+          .
+        </Para>
+      </Section>
+
       <Section title="What we collect">
         <Bullets
           items={[
