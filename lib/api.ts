@@ -667,20 +667,46 @@ export async function adjustStock(
   });
 }
 
-export interface VariantInput {
+export interface ColourInput {
   id?: string;
-  label: string;
+  name: string;
+  hex?: string | null;
+  images: string[];
   isActive: boolean;
 }
 
+export interface VariantInput {
+  id?: string;
+  /**
+   * Named rather than referenced, so a cell can point at a colour this same
+   * request is creating and the admin screen needs no round trip to learn its id.
+   */
+  colourName?: string | null;
+  /** Empty for a product sold by colour alone. */
+  label: string;
+  /**
+   * Omit to leave any override alone. Null clears it back to the product's own
+   * price, which is a different instruction from leaving it be.
+   */
+  price?: number | null;
+  isActive: boolean;
+}
+
+/**
+ * Saves the whole set of colours and cells at once.
+ *
+ * One request rather than two because "S, M, L in red and blue" is a single
+ * decision: saving the colours and then failing on the cells would leave a
+ * product with swatches nobody can buy.
+ */
 export async function updateVariants(
   token: string,
   productId: string,
-  variants: VariantInput[]
+  payload: { colours: ColourInput[]; variants: VariantInput[] }
 ): Promise<{ product: Product }> {
   return withToken<{ product: Product }>(`/products/${productId}/variants`, token, {
     method: "PUT",
-    body: JSON.stringify({ variants }),
+    body: JSON.stringify(payload),
   });
 }
 
