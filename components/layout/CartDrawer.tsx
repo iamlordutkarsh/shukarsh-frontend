@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BadgePercent, ChevronRight, ShieldCheck, Sparkles, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cartLineKey, lineStock, toApiItems, useCart } from "../../lib/cart";
+import { cartLineKey, linePrice, lineStock, lineVariantName, toApiItems, useCart } from "../../lib/cart";
 import { ChooseSize } from "../cart/ChooseSize";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { easeSoft } from "../../lib/motion";
@@ -111,6 +111,7 @@ export function CartDrawer() {
             <AnimatePresence initial={false}>
               {items.map((item) => {
                 const { product, quantity } = item;
+                const chosen = lineVariantName(item);
                 const stock = lineStock(item);
 
                 return (
@@ -148,16 +149,14 @@ export function CartDrawer() {
                         >
                           {product.name}
                         </Link>
-                        {item.variantLabel ? (
-                          <p className="mt-0.5 text-xs font-semibold text-muted">Size {item.variantLabel}</p>
+                        {chosen ? (
+                          <p className="mt-0.5 text-xs font-semibold text-muted">{chosen}</p>
                         ) : null}
                       </div>
                       <button
                         type="button"
                         onClick={() => removeFromCart(cartLineKey(item))}
-                        aria-label={`Remove ${product.name}${
-                          item.variantLabel ? ` in ${item.variantLabel}` : ""
-                        } from bag`}
+                        aria-label={`Remove ${product.name}${chosen ? ` in ${chosen}` : ""} from bag`}
                         className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-faint transition-colors hover:bg-rose-50 hover:text-rose-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={2.3} />
@@ -177,11 +176,11 @@ export function CartDrawer() {
                         onChange={(next) => updateQuantity(cartLineKey(item), next)}
                         min={0}
                         max={Math.max(1, Math.min(10, stock))}
-                        label={`Quantity for ${product.name}${
-                          item.variantLabel ? ` in ${item.variantLabel}` : ""
-                        }`}
+                        label={`Quantity for ${product.name}${chosen ? ` in ${chosen}` : ""}`}
                       />
-                      <span className="text-sm font-bold text-ink">{formatPrice(product.price * quantity)}</span>
+                      <span className="text-sm font-bold text-ink">
+                        {formatPrice(linePrice(item) * quantity)}
+                      </span>
                     </div>
                   </div>
                 </motion.li>

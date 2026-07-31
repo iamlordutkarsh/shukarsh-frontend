@@ -17,7 +17,7 @@ import {
   type PaymentMethod,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { cartLineKey, toApiItems, useCart } from "../../lib/cart";
+import { cartLineKey, lineVariantName, toApiItems, useCart } from "../../lib/cart";
 import { INDIAN_STATES, ORDER_PLACED_KEY, canonicalState } from "../../lib/constants";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { fadeUp, staggerParent } from "../../lib/motion";
@@ -764,7 +764,7 @@ export default function CheckoutPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-ink">{product.name}</span>
                       <span className="block text-xs text-muted">
-                        {item.variantLabel ? `Size ${item.variantLabel} · ` : ""}Qty {quantity}
+                        {lineVariantName(item) ? `${lineVariantName(item)} · ` : ""}Qty {quantity}
                       </span>
                     </span>
                     <span className="shrink-0 text-sm font-bold text-ink">

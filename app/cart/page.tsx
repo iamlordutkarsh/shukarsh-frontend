@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cartLineKey, lineStock, useCart } from "../../lib/cart";
+import { cartLineKey, linePrice, lineStock, lineVariantName, useCart } from "../../lib/cart";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { easeSoft } from "../../lib/motion";
 import { formatPrice } from "../../lib/utils";
@@ -55,6 +55,7 @@ export default function CartPage() {
               <AnimatePresence initial={false}>
                 {items.map((item) => {
                   const { product, quantity } = item;
+                  const chosen = lineVariantName(item);
 
                   return (
                   <motion.li
@@ -96,10 +97,8 @@ export default function CartPage() {
                             {product.name}
                           </Link>
                           <p className="mt-1 text-sm text-muted">
-                            {item.variantLabel ? (
-                              <span className="font-semibold text-ink">{item.variantLabel} · </span>
-                            ) : null}
-                            {formatPrice(product.price)} each
+                            {chosen ? <span className="font-semibold text-ink">{chosen} · </span> : null}
+                            {formatPrice(linePrice(item))} each
                           </p>
                           <ChooseSize item={item} className="mt-2" />
                         </div>
@@ -108,9 +107,7 @@ export default function CartPage() {
                           <button
                             type="button"
                             onClick={() => removeFromCart(cartLineKey(item))}
-                            aria-label={`Remove ${product.name}${
-                              item.variantLabel ? ` in ${item.variantLabel}` : ""
-                            } from bag`}
+                            aria-label={`Remove ${product.name}${chosen ? ` in ${chosen}` : ""} from bag`}
                             className="grid h-9 w-9 place-items-center rounded-full bg-surface text-faint shadow-soft transition-colors hover:text-rose-500"
                           >
                             <Trash2 className="h-4 w-4" strokeWidth={2.3} />
@@ -124,12 +121,10 @@ export default function CartPage() {
                           onChange={(next) => updateQuantity(cartLineKey(item), next)}
                           min={0}
                           max={Math.max(1, Math.min(10, lineStock(item)))}
-                          label={`Quantity for ${product.name}${
-                            item.variantLabel ? ` in ${item.variantLabel}` : ""
-                          }`}
+                          label={`Quantity for ${product.name}${chosen ? ` in ${chosen}` : ""}`}
                         />
                         <span className="text-lg font-bold text-ink">
-                          {formatPrice(product.price * quantity)}
+                          {formatPrice(linePrice(item) * quantity)}
                         </span>
                       </div>
                     </div>

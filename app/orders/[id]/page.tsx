@@ -374,7 +374,9 @@ export default function OrderDetailPage() {
                     <span className="block truncate text-sm font-semibold text-ink">Item</span>
                   )}
                   <span className="block text-xs text-muted">
-                    {item.variantLabel ? `Size ${item.variantLabel} · ` : ""}Qty {item.quantity} · {formatPrice(item.price)} each
+                    {[item.variantColour, item.variantLabel].filter(Boolean).join(" · ") || ""}
+                    {item.variantColour || item.variantLabel ? " · " : ""}Qty {item.quantity} ·{" "}
+                    {formatPrice(item.price)} each
                   </span>
 
                   {canReview &&
