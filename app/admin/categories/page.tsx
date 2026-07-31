@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState } from "react";
-import { Pencil, Tags, Trash2 } from "lucide-react";
+import { ChevronRight, ListChecks, Pencil, Tags, Trash2 } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { FormField, inputClass, textareaClass } from "../../../components/admin/FormField";
 import { Button } from "../../../components/ui/Button";
@@ -14,8 +14,48 @@ import { useToast } from "../../../components/ui/Toast";
 import { createCategory, deleteCategory, getCategories, updateCategory } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { Category } from "../../../lib/types";
+import { cn } from "../../../lib/utils";
+import { AttributeEditor } from "../../../components/admin/AttributeEditor";
 
-const emptyForm = { name: "", slug: "", description: "" };
+const emptyForm = { name: "", slug: "", description: "", parentId: "", position: "0" };
+
+/**
+ * The tree flattened back out, with a depth against each row.
+ *
+ * A nested list would need a recursive component to render and a recursive walk
+ * to find anything; one flat list indented by depth draws the same shape and
+ * stays an ordinary array. Roots first, each followed by its own subtree, which
+ * is the order somebody reads a menu in.
+ */
+function flatten(categories: Category[], parentId: string | null = null, depth = 0): { category: Category; depth: number }[] {
+  return categories
+    .filter((category) => (category.parentId ?? null) === parentId)
+    .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name))
+    .flatMap((category) => [
+      { category, depth },
+      ...flatten(categories, category.id, depth + 1),
+    ]);
+}
+
+/** Every category at or below this one, so a parent picker can rule them out. */
+function subtreeIds(categories: Category[], rootId: string): Set<string> {
+  const ids = new Set([rootId]);
+  let grew = true;
+
+  // Repeated passes rather than recursion: the list is small, and this cannot
+  // loop forever on a parent chain that somehow points back at itself.
+  while (grew) {
+    grew = false;
+    for (const category of categories) {
+      if (category.parentId && ids.has(category.parentId) && !ids.has(category.id)) {
+        ids.add(category.id);
+        grew = true;
+      }
+    }
+  }
+
+  return ids;
+}
 
 export default function AdminCategoriesPage() {
   const { token } = useAuth();
@@ -27,6 +67,7 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  const [questionsFor, setQuestionsFor] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const [reloadKey, setReloadKey] = useState(0);
@@ -66,10 +107,21 @@ export default function AdminCategoriesPage() {
 
     setSaving(true);
     try {
+      const payload = {
+        name: form.name,
+        slug: form.slug,
+        description: form.description,
+        // Empty means the top level, which the API takes as an explicit null
+        // rather than an absent field: "no parent" and "leave it alone" are
+        // different instructions.
+        parentId: form.parentId || null,
+        position: Number(form.position) || 0,
+      };
+
       if (editing) {
-        await updateCategory(token, editing.id, form);
+        await updateCategory(token, editing.id, payload);
       } else {
-        await createCategory(token, form);
+        await createCategory(token, payload);
       }
       toast({
         title: editing ? "Category updated" : "Category created",
@@ -96,6 +148,8 @@ export default function AdminCategoriesPage() {
       name: category.name,
       slug: category.slug,
       description: category.description || "",
+      parentId: category.parentId || "",
+      position: String(category.position ?? 0),
     });
   };
 
@@ -166,6 +220,46 @@ export default function AdminCategoriesPage() {
               />
             </FormField>
 
+            <FormField
+              label="Sits inside"
+              htmlFor={`${uid}-parent`}
+              hint="Leave at the top level for a department. Questions asked here are asked of everything beneath it."
+            >
+              <select
+                id={`${uid}-parent`}
+                value={form.parentId}
+                onChange={(e) => setForm({ ...form, parentId: e.target.value })}
+                className={inputClass}
+              >
+                <option value="">Top level</option>
+                {flatten(categories)
+                  // A category cannot sit inside itself or anything below it:
+                  // that makes a ring which never reaches a root, and every
+                  // category in it drops out of the menu. The API refuses it too.
+                  .filter(({ category }) => !editing || !subtreeIds(categories, editing.id).has(category.id))
+                  .map(({ category, depth }) => (
+                    <option key={category.id} value={category.id}>
+                      {`${"— ".repeat(depth)}${category.name}`}
+                    </option>
+                  ))}
+              </select>
+            </FormField>
+
+            <FormField
+              label="Position"
+              htmlFor={`${uid}-position`}
+              hint="Order among its siblings. Lower comes first."
+            >
+              <input
+                id={`${uid}-position`}
+                type="number"
+                min={0}
+                value={form.position}
+                onChange={(e) => setForm({ ...form, position: e.target.value })}
+                className={inputClass}
+              />
+            </FormField>
+
             <FormField label="Description" htmlFor={`${uid}-description`}>
               <textarea
                 id={`${uid}-description`}
@@ -204,48 +298,61 @@ export default function AdminCategoriesPage() {
               description="Create your first shelf using the form beside this card."
             />
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {categories.map((category) => {
+            <ul className="overflow-hidden rounded-4xl bg-surface/90 shadow-soft hairline">
+              {flatten(categories).map(({ category, depth }) => {
                 const active = editing?.id === category.id;
+                const isLeaf = !categories.some((child) => child.parentId === category.id);
+
                 return (
                   <li
                     key={category.id}
-                    className={
-                      active
-                        ? "rounded-4xl bg-surface p-5 shadow-lift ring-2 ring-lavender-300"
-                        : "rounded-4xl bg-surface/90 p-5 shadow-soft hairline"
-                    }
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-base text-ink">{category.name}</h3>
-                        <div className="mt-2">
-                          <Pill tone="glass">{category.slug}</Pill>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Button
-                          variant="secondary"
-                          size="icon-sm"
-                          aria-label={`Edit ${category.name}`}
-                          onClick={() => handleEdit(category)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" strokeWidth={2.4} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Delete ${category.name}`}
-                          onClick={() => setPendingDelete(category)}
-                          className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2.4} />
-                        </Button>
-                      </div>
-                    </div>
-                    {category.description && (
-                      <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted">{category.description}</p>
+                    className={cn(
+                      "flex flex-wrap items-center gap-2 border-b border-line px-4 py-3 last:border-b-0",
+                      active && "bg-lavender-50"
                     )}
+                    // Indented by depth so the shape of the tree is the shape of
+                    // the list. A nested list would need a recursive component
+                    // to draw exactly this.
+                    style={{ paddingLeft: `${1 + depth * 1.25}rem` }}
+                  >
+                    {depth > 0 && (
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-faint" strokeWidth={2.4} aria-hidden />
+                    )}
+
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-ink">{category.name}</span>
+                      <span className="block truncate text-xs text-muted">{category.slug}</span>
+                    </span>
+
+                    {isLeaf && <Pill tone="glass">Products go here</Pill>}
+
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setQuestionsFor(category)}
+                      >
+                        <ListChecks className="h-3.5 w-3.5" strokeWidth={2.4} />
+                        Questions
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Edit ${category.name}`}
+                        onClick={() => handleEdit(category)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Delete ${category.name}`}
+                        onClick={() => setPendingDelete(category)}
+                        className="text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      </Button>
+                    </span>
                   </li>
                 );
               })}
@@ -253,6 +360,33 @@ export default function AdminCategoriesPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        open={questionsFor !== null}
+        onClose={() => setQuestionsFor(null)}
+        label={`Questions for ${questionsFor?.name ?? ""}`}
+        className="max-w-2xl"
+      >
+        <div className="max-h-[85vh] overflow-y-auto p-6 sm:p-7">
+          <h2 className="pr-12 text-xl text-ink">{questionsFor?.name}</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">
+            What every product filed here, or anywhere beneath here, is asked for. These become the
+            fields on the product form, and the filters on the catalogue.
+          </p>
+
+          <div className="mt-6">
+            {questionsFor && (
+              <AttributeEditor
+                // Remounted per category, so opening a second one starts from
+                // its own questions rather than the last one's.
+                key={questionsFor.id}
+                categoryId={questionsFor.id}
+                categoryName={questionsFor.name}
+              />
+            )}
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={pendingDelete !== null}
