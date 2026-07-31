@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BadgePercent, ChevronRight, ShieldCheck, Sparkles, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCart } from "../../lib/cart";
+import { cartLineKey, lineStock, toApiItems, useCart } from "../../lib/cart";
+import { ChooseSize } from "../cart/ChooseSize";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { easeSoft } from "../../lib/motion";
 import { useUI } from "../../lib/ui-store";
@@ -31,12 +32,9 @@ export function CartDrawer() {
 
   const [deliveryQuote, setDeliveryQuote] = useState<BagDeliveryQuote | null>(null);
 
-  const lineItems = useMemo(
-    () => items.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
-    [items]
-  );
+  const lineItems = useMemo(() => toApiItems(items), [items]);
   const cartKey = useMemo(
-    () => lineItems.map((line) => `${line.productId}:${line.quantity}`).join(","),
+    () => lineItems.map((line) => `${line.productId}:${line.variantId ?? ""}:${line.quantity}`).join(","),
     [lineItems]
   );
 
@@ -111,9 +109,13 @@ export function CartDrawer() {
 
           <ul className="space-y-3">
             <AnimatePresence initial={false}>
-              {items.map(({ product, quantity }) => (
+              {items.map((item) => {
+                const { product, quantity } = item;
+                const stock = lineStock(item);
+
+                return (
                 <motion.li
-                  key={product.id}
+                  key={cartLineKey(item)}
                   layout
                   initial={{ opacity: 0, x: 24 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -146,37 +148,45 @@ export function CartDrawer() {
                         >
                           {product.name}
                         </Link>
+                        {item.variantLabel ? (
+                          <p className="mt-0.5 text-xs font-semibold text-muted">Size {item.variantLabel}</p>
+                        ) : null}
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeFromCart(product.id)}
-                        aria-label={`Remove ${product.name} from bag`}
+                        onClick={() => removeFromCart(cartLineKey(item))}
+                        aria-label={`Remove ${product.name}${
+                          item.variantLabel ? ` in ${item.variantLabel}` : ""
+                        } from bag`}
                         className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-faint transition-colors hover:bg-rose-50 hover:text-rose-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={2.3} />
                       </button>
                     </div>
 
-                    {product.stock <= 3 && (
-                      <p className="text-[0.6875rem] font-semibold text-peach-400">
-                        Only {product.stock} left
-                      </p>
+                    <ChooseSize item={item} />
+
+                    {stock <= 3 && (
+                      <p className="text-[0.6875rem] font-semibold text-peach-400">Only {stock} left</p>
                     )}
 
                     <div className="mt-auto flex items-center justify-between gap-2">
                       <QuantityStepper
                         size="sm"
                         value={quantity}
-                        onChange={(next) => updateQuantity(product.id, next)}
+                        onChange={(next) => updateQuantity(cartLineKey(item), next)}
                         min={0}
-                        max={Math.max(1, Math.min(10, product.stock))}
-                        label={`Quantity for ${product.name}`}
+                        max={Math.max(1, Math.min(10, stock))}
+                        label={`Quantity for ${product.name}${
+                          item.variantLabel ? ` in ${item.variantLabel}` : ""
+                        }`}
                       />
                       <span className="text-sm font-bold text-ink">{formatPrice(product.price * quantity)}</span>
                     </div>
                   </div>
                 </motion.li>
-              ))}
+                );
+              })}
             </AnimatePresence>
           </ul>
 

@@ -4,10 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck, Trash2, Truck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCart } from "../../lib/cart";
+import { cartLineKey, lineStock, useCart } from "../../lib/cart";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { easeSoft } from "../../lib/motion";
 import { formatPrice } from "../../lib/utils";
+import { ChooseSize } from "../../components/cart/ChooseSize";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
 import { QuantityStepper } from "../../components/product/QuantityStepper";
 import { WishlistButton } from "../../components/product/WishlistButton";
@@ -52,9 +53,12 @@ export default function CartPage() {
           <div className="mt-10 grid gap-8 lg:grid-cols-[1.6fr_1fr] lg:items-start">
             <ul className="space-y-4">
               <AnimatePresence initial={false}>
-                {items.map(({ product, quantity }) => (
+                {items.map((item) => {
+                  const { product, quantity } = item;
+
+                  return (
                   <motion.li
-                    key={product.id}
+                    key={cartLineKey(item)}
                     layout
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -91,14 +95,22 @@ export default function CartPage() {
                           >
                             {product.name}
                           </Link>
-                          <p className="mt-1 text-sm text-muted">{formatPrice(product.price)} each</p>
+                          <p className="mt-1 text-sm text-muted">
+                            {item.variantLabel ? (
+                              <span className="font-semibold text-ink">{item.variantLabel} · </span>
+                            ) : null}
+                            {formatPrice(product.price)} each
+                          </p>
+                          <ChooseSize item={item} className="mt-2" />
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
                           <WishlistButton product={product} size="sm" />
                           <button
                             type="button"
-                            onClick={() => removeFromCart(product.id)}
-                            aria-label={`Remove ${product.name} from bag`}
+                            onClick={() => removeFromCart(cartLineKey(item))}
+                            aria-label={`Remove ${product.name}${
+                              item.variantLabel ? ` in ${item.variantLabel}` : ""
+                            } from bag`}
                             className="grid h-9 w-9 place-items-center rounded-full bg-surface text-faint shadow-soft transition-colors hover:text-rose-500"
                           >
                             <Trash2 className="h-4 w-4" strokeWidth={2.3} />
@@ -109,10 +121,12 @@ export default function CartPage() {
                       <div className="mt-auto flex items-center justify-between gap-3">
                         <QuantityStepper
                           value={quantity}
-                          onChange={(next) => updateQuantity(product.id, next)}
+                          onChange={(next) => updateQuantity(cartLineKey(item), next)}
                           min={0}
-                          max={Math.max(1, Math.min(10, product.stock))}
-                          label={`Quantity for ${product.name}`}
+                          max={Math.max(1, Math.min(10, lineStock(item)))}
+                          label={`Quantity for ${product.name}${
+                            item.variantLabel ? ` in ${item.variantLabel}` : ""
+                          }`}
                         />
                         <span className="text-lg font-bold text-ink">
                           {formatPrice(product.price * quantity)}
@@ -120,7 +134,8 @@ export default function CartPage() {
                       </div>
                     </div>
                   </motion.li>
-                ))}
+                  );
+                })}
               </AnimatePresence>
             </ul>
 

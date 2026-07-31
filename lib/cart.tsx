@@ -6,14 +6,66 @@ import type { Product } from "./types";
 
 export interface CartItem {
   product: Product;
+  /**
+   * Absent on a bag saved before this product had sizes. The line survives, and
+   * the cart page asks for a size rather than dropping something the customer
+   * chose.
+   */
+  variantId?: string | null;
+  /** Kept beside the id so a bag can be listed without refetching the product. */
+  variantLabel?: string | null;
   quantity: number;
+}
+
+/**
+ * What makes a line its own line.
+ *
+ * A medium and a large of one shirt are two lines, so nothing in the bag can be
+ * addressed by product id alone any more.
+ */
+export function cartLineKey(item: { product: Product; variantId?: string | null }): string {
+  return `${item.product.id}::${item.variantId ?? ""}`;
+}
+
+export interface ChosenVariant {
+  id: string;
+  label: string;
+}
+
+/**
+ * The bag as the API takes it.
+ *
+ * Shared so the delivery check, the coupon check and the order are always
+ * describing the same bag. `variantId` is left out rather than sent as null
+ * because the schema on the other side treats the field as optional.
+ */
+export function toApiItems(items: CartItem[]): { productId: string; variantId?: string; quantity: number }[] {
+  return items.map((item) => ({
+    productId: item.product.id,
+    ...(item.variantId ? { variantId: item.variantId } : {}),
+    quantity: item.quantity,
+  }));
+}
+
+/**
+ * How many of this line the shop looks like it has.
+ *
+ * Only ever a cap on the stepper: the bag holds a snapshot that may be days old,
+ * and the real answer comes from the server when the bag is priced.
+ */
+export function lineStock(item: CartItem): number {
+  if (!item.variantId) return item.product.stock;
+  const size = item.product.variants?.find((variant) => variant.id === item.variantId);
+  return size ? size.stock : item.product.stock;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: Product, quantity?: number) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  addToCart: (product: Product, quantity?: number, variant?: ChosenVariant | null) => void;
+  removeFromCart: (key: string) => void;
+  updateQuantity: (key: string, quantity: number) => void;
+  /** For a line saved before its product had sizes. */
+  setLineVariant: (key: string, variant: ChosenVariant) => void;
   mergeIntoCart: (items: CartItem[]) => void;
   clearCart: () => void;
   totalItems: number;
@@ -28,34 +80,64 @@ const store = createLocalStore<CartItem[]>("shukarsh-cart", EMPTY);
 export function CartProvider({ children }: { children: ReactNode }) {
   const items = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
 
-  const addToCart = useCallback((product: Product, quantity = 1) => {
+  const addToCart = useCallback((product: Product, quantity = 1, variant?: ChosenVariant | null) => {
+    const line = {
+      product,
+      variantId: variant?.id ?? null,
+      variantLabel: variant?.label ?? null,
+      quantity,
+    };
+    const key = cartLineKey(line);
+
     store.set((current) => {
-      const existing = current.find((item) => item.product.id === product.id);
+      const existing = current.find((item) => cartLineKey(item) === key);
       if (existing) {
         return current.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
+          cartLineKey(item) === key ? { ...item, quantity: item.quantity + quantity } : item
         );
       }
-      return [...current, { product, quantity }];
+      return [...current, line];
     });
   }, []);
 
-  const removeFromCart = useCallback((productId: string) => {
-    store.set((current) => current.filter((item) => item.product.id !== productId));
+  const removeFromCart = useCallback((key: string) => {
+    store.set((current) => current.filter((item) => cartLineKey(item) !== key));
   }, []);
 
   const updateQuantity = useCallback(
-    (productId: string, quantity: number) => {
+    (key: string, quantity: number) => {
       if (quantity <= 0) {
-        removeFromCart(productId);
+        removeFromCart(key);
         return;
       }
       store.set((current) =>
-        current.map((item) => (item.product.id === productId ? { ...item, quantity } : item))
+        current.map((item) => (cartLineKey(item) === key ? { ...item, quantity } : item))
       );
     },
     [removeFromCart]
   );
+
+  /**
+   * Merges rather than just labels: if the bag already holds the size being
+   * chosen, the two become one line, because they are the same thing off the
+   * same shelf and two lines would be checked against that shelf separately.
+   */
+  const setLineVariant = useCallback((key: string, variant: ChosenVariant) => {
+    store.set((current) => {
+      const line = current.find((item) => cartLineKey(item) === key);
+      if (!line) return current;
+
+      const chosen = { ...line, variantId: variant.id, variantLabel: variant.label };
+      const chosenKey = cartLineKey(chosen);
+      const clash = current.find((item) => item !== line && cartLineKey(item) === chosenKey);
+
+      if (!clash) return current.map((item) => (item === line ? chosen : item));
+
+      return current
+        .filter((item) => item !== line)
+        .map((item) => (item === clash ? { ...clash, quantity: clash.quantity + line.quantity } : item));
+    });
+  }, []);
 
   /**
    * Puts back anything the bag is missing, and leaves alone anything it already
@@ -64,8 +146,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
    */
   const mergeIntoCart = useCallback((incoming: CartItem[]) => {
     store.set((current) => {
-      const have = new Set(current.map((item) => item.product.id));
-      const missing = incoming.filter((item) => !have.has(item.product.id));
+      const have = new Set(current.map(cartLineKey));
+      const missing = incoming.filter((item) => !have.has(cartLineKey(item)));
       return missing.length > 0 ? [...current, ...missing] : current;
     });
   }, []);
@@ -80,12 +162,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       addToCart,
       removeFromCart,
       updateQuantity,
+      setLineVariant,
       mergeIntoCart,
       clearCart,
       totalItems,
       totalPrice,
     };
-  }, [items, addToCart, removeFromCart, updateQuantity, mergeIntoCart, clearCart]);
+  }, [items, addToCart, removeFromCart, updateQuantity, setLineVariant, mergeIntoCart, clearCart]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

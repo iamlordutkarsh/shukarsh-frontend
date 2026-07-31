@@ -6,6 +6,14 @@ export interface Category {
   image: string | null;
 }
 
+export interface ProductVariant {
+  id: string;
+  label: string;
+  position: number;
+  stock: number;
+  isActive: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -29,6 +37,11 @@ export interface Product {
    * it, so treat undefined as "not visible to me" rather than "not set".
    */
   costPrice?: number | null;
+  /**
+   * Empty for a product sold in one size only. When it has entries, `stock` is
+   * their sum and nothing can be bought without choosing one of them.
+   */
+  variants: ProductVariant[];
   categoryId: string;
   category: Category;
   createdAt: string;
@@ -77,6 +90,8 @@ export interface User {
 export interface OrderItem {
   id: string;
   productId: string;
+  /** The size as it read when bought, null for a product without sizes. */
+  variantLabel: string | null;
   quantity: number;
   price: number;
   gstRate: number;

@@ -17,7 +17,7 @@ import {
   type PaymentMethod,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { useCart } from "../../lib/cart";
+import { cartLineKey, toApiItems, useCart } from "../../lib/cart";
 import { INDIAN_STATES, ORDER_PLACED_KEY, canonicalState } from "../../lib/constants";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
 import { fadeUp, staggerParent } from "../../lib/motion";
@@ -149,12 +149,9 @@ export default function CheckoutPage() {
   const [quote, setQuote] = useState<{ key: string; data: DeliveryQuote | null; error: string } | null>(null);
 
   const pincodeReady = PINCODE.test(form.zip);
-  const lineItems = useMemo(
-    () => items.map((item) => ({ productId: item.product.id, quantity: item.quantity })),
-    [items]
-  );
+  const lineItems = useMemo(() => toApiItems(items), [items]);
   const cartKey = useMemo(
-    () => lineItems.map((line) => `${line.productId}:${line.quantity}`).join(","),
+    () => lineItems.map((line) => `${line.productId}:${line.variantId ?? ""}:${line.quantity}`).join(","),
     [lineItems]
   );
   /** A quote is only valid for the bag and PIN code it was fetched for. */
@@ -752,8 +749,11 @@ export default function CheckoutPage() {
               </h2>
 
               <ul className="mt-5 space-y-3">
-                {items.map(({ product, quantity }) => (
-                  <li key={product.id} className="flex items-center gap-3">
+                {items.map((item) => {
+                  const { product, quantity } = item;
+
+                  return (
+                  <li key={cartLineKey(item)} className="flex items-center gap-3">
                     <span className="relative h-14 w-12 shrink-0 overflow-hidden rounded-2xl bg-lavender-50">
                       {product.images[0] ? (
                         <Image src={product.images[0]} alt="" fill sizes="48px" className="object-cover" />
@@ -763,13 +763,16 @@ export default function CheckoutPage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-ink">{product.name}</span>
-                      <span className="block text-xs text-muted">Qty {quantity}</span>
+                      <span className="block text-xs text-muted">
+                        {item.variantLabel ? `Size ${item.variantLabel} · ` : ""}Qty {quantity}
+                      </span>
                     </span>
                     <span className="shrink-0 text-sm font-bold text-ink">
                       {formatPrice(product.price * quantity)}
                     </span>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
 
               <div className="mt-5 border-t border-line pt-4">
