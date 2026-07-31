@@ -40,9 +40,13 @@ function inTab(order: Order, tab: TabKey) {
   // A checkout that was never paid is an abandoned cart, not work for the shop.
   // It still gets a Pending row, so it needs its own tab or it would sit in the
   // approval queue forever alongside orders that actually owe someone a parcel.
+  // A cash order is unpaid until it is delivered, but it is real work with a
+  // real parcel, so it belongs in the queues rather than in with the abandoned
+  // checkouts.
+  const settled = order.paymentStatus === "PAID" || order.paymentMethod === "COD";
   const closed = order.status === "CANCELLED" || order.status === "RETURNED";
-  if (tab === "UNPAID") return order.paymentStatus !== "PAID" && !closed;
-  if (order.paymentStatus !== "PAID") return false;
+  if (tab === "UNPAID") return !settled && !closed;
+  if (!settled) return false;
 
   return order.status === tab;
 }
@@ -359,7 +363,9 @@ export default function AdminOrdersPage() {
             const customer = customerOf(order);
             const shipping = shippingLineOf(order);
             const awb = order.shipment?.awb ?? null;
-            const awaitingApproval = order.status === "PENDING" && order.paymentStatus === "PAID";
+            const awaitingApproval =
+              order.status === "PENDING" &&
+              (order.paymentStatus === "PAID" || order.paymentMethod === "COD");
             // Only nag about orders that are actually waiting on the shop.
             const waiting = awaitingApproval ? daysWaiting(order) : null;
 
@@ -437,7 +443,11 @@ export default function AdminOrdersPage() {
                         paymentClasses[order.paymentStatus] ?? "bg-lavender-100 text-lavender-700"
                       )}
                     >
-                      {order.paymentStatus.toLowerCase()}
+                      {/* "Pending" on a cash order reads as a customer who has not
+                          paid, when it means one who has not received it yet. */}
+                      {order.paymentMethod === "COD" && order.paymentStatus !== "PAID"
+                        ? "cash on delivery"
+                        : order.paymentStatus.toLowerCase()}
                     </span>
 
                     <span

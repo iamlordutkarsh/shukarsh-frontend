@@ -85,8 +85,12 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
   const address = order?.shippingAddress ?? {};
   const shipped = Boolean(shipment?.awb);
   const isManual = shipment?.provider === "manual";
-  const paid = order?.paymentStatus === "PAID";
-  const needsQuote = open && Boolean(token) && orderId !== null && !shipped && paid;
+  /**
+   * A cash order is unpaid on purpose right up until the courier hands over the
+   * parcel, so payment cannot be what decides whether it may be dispatched.
+   */
+  const shippable = order?.paymentStatus === "PAID" || order?.paymentMethod === "COD";
+  const needsQuote = open && Boolean(token) && orderId !== null && !shipped && shippable;
 
   /** Courier options only matter before an AWB exists. */
   useEffect(() => {
@@ -271,13 +275,20 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
               <dd className="font-semibold text-ink">{formatPrice(order.shippingAmount)}</dd>
             </div>
             <div className="flex gap-1.5">
-              <dt className="text-muted">Paid</dt>
+              <dt className="text-muted">{order.paymentMethod === "COD" ? "To collect" : "Paid"}</dt>
               <dd className="font-semibold text-ink">{formatPrice(order.totalAmount)}</dd>
             </div>
           </dl>
+
+          {order.paymentMethod === "COD" && (
+            <p className="mt-3 rounded-3xl bg-peach-100 px-4 py-3 text-xs font-semibold text-peach-400">
+              Cash on delivery. The courier collects {formatPrice(order.totalAmount)} at the door, so the
+              label must go out marked COD.
+            </p>
+          )}
         </section>
 
-        {!paid ? (
+        {!shippable ? (
           <p className="rounded-3xl bg-peach-100 px-4 py-3.5 text-sm text-peach-400">
             This order has not been paid for yet, so it cannot be shipped.
           </p>

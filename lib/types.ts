@@ -111,9 +111,13 @@ export interface Order {
   id: string;
   status: string;
   paymentStatus: string;
+  /** COD is unpaid until the courier collects, which is not the same as unpaid. */
+  paymentMethod: "PREPAID" | "COD";
   itemsTotal: number;
   shippingAmount: number;
-  /** totalAmount is itemsTotal - discountTotal + shippingAmount. */
+  /** What the courier charges to collect cash. Zero on a prepaid order. */
+  codFee: number;
+  /** totalAmount is itemsTotal - discountTotal + shippingAmount + codFee. */
   discountTotal: number;
   couponCode?: string | null;
   totalAmount: number;
