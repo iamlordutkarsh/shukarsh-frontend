@@ -93,21 +93,21 @@ function PayOption({
   title,
   detail,
   disabled = false,
-  tone = "default",
 }: {
   checked: boolean;
   onSelect: () => void;
   title: string;
   detail: string;
   disabled?: boolean;
-  tone?: "default" | "muted";
 }) {
   return (
     <label
       className={cn(
         "flex cursor-pointer items-start gap-3 rounded-3xl border px-4 py-3.5 transition-colors",
         checked ? "border-lavender-300 bg-lavender-50" : "border-line bg-surface hover:bg-lavender-50/50",
-        disabled && "cursor-not-allowed opacity-60"
+        // Unavailable is not an error the customer made, so it goes grey and
+        // stays put rather than shouting in red next to the button they need.
+        disabled && "cursor-not-allowed border-line bg-lavender-50/30 hover:bg-lavender-50/30"
       )}
     >
       <input
@@ -119,8 +119,8 @@ function PayOption({
         onChange={onSelect}
       />
       <span className="min-w-0">
-        <span className="block text-sm font-semibold text-ink">{title}</span>
-        <span className={cn("mt-0.5 block text-xs leading-relaxed", tone === "muted" ? "text-rose-500" : "text-muted")}>
+        <span className={cn("block text-sm font-semibold", disabled ? "text-muted" : "text-ink")}>{title}</span>
+        <span className={cn("mt-0.5 block text-xs leading-relaxed", disabled ? "text-faint" : "text-muted")}>
           {detail}
         </span>
       </span>
@@ -688,7 +688,9 @@ export default function CheckoutPage() {
                     <PayOption
                       checked={payingCash}
                       onSelect={() => setPayMethod("COD")}
-                      disabled={codRefused !== null && payMethod !== "COD"}
+                      // Refused is refused whichever way the radio was left, and
+                      // an option that cannot be taken should not look takeable.
+                      disabled={codRefused !== null}
                       title="Cash on delivery"
                       detail={
                         codRefused ??
@@ -696,14 +698,15 @@ export default function CheckoutPage() {
                           codFee || cod.fee
                         )} to cover collection.`
                       }
-                      tone={codRefused ? "muted" : "default"}
                     />
                   )}
                 </div>
 
+                {/* The greyed row says why on screen; this is the same fact for a
+                    reader that cannot see a row change colour. */}
                 {codRefused && payMethod === "COD" && (
-                  <p className="mt-3 text-xs text-rose-500" role="status">
-                    {codRefused} Pay now to place this order.
+                  <p className="sr-only" role="status">
+                    {codRefused} Your order will be paid now instead.
                   </p>
                 )}
               </motion.section>
