@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import AdminLayout from "../../../../../components/AdminLayout";
 import ProductForm, { FormData } from "../../../../../components/ProductForm";
+import { VariantManager } from "../../../../../components/admin/VariantManager";
 import { ButtonLink } from "../../../../../components/ui/Button";
 import { EmptyState } from "../../../../../components/ui/EmptyState";
 import { OopsArt } from "../../../../../components/ui/KawaiiArt";
@@ -76,12 +77,15 @@ export default function EditProductPage() {
           <Skeleton className="h-40 w-full rounded-4xl" />
         </div>
       ) : product ? (
-        <ProductForm
-          categories={categories}
-          product={product}
-          onSubmit={handleSubmit}
-          submitLabel="Update product"
-        />
+        <div className="space-y-5">
+          <ProductForm
+            categories={categories}
+            product={product}
+            onSubmit={handleSubmit}
+            submitLabel="Update product"
+          />
+          <VariantManager product={product} />
+        </div>
       ) : (
         <EmptyState
           art={<OopsArt />}

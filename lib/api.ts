@@ -659,11 +659,28 @@ export async function getAnalytics(token: string, days: number): Promise<{ summa
 export async function adjustStock(
   token: string,
   productId: string,
-  payload: { delta: number; reason: ManualStockReason; note?: string }
+  payload: { delta: number; reason: ManualStockReason; note?: string; variantId?: string }
 ): Promise<{ product: Product }> {
   return withToken<{ product: Product }>(`/products/${productId}/stock`, token, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export interface VariantInput {
+  id?: string;
+  label: string;
+  isActive: boolean;
+}
+
+export async function updateVariants(
+  token: string,
+  productId: string,
+  variants: VariantInput[]
+): Promise<{ product: Product }> {
+  return withToken<{ product: Product }>(`/products/${productId}/variants`, token, {
+    method: "PUT",
+    body: JSON.stringify({ variants }),
   });
 }
 
