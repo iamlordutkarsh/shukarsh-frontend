@@ -35,20 +35,28 @@ export interface ShopDetails {
 }
 
 export const SHOP: ShopDetails = {
-  legalName: "",
+  legalName: "Shukarsh Enterprises",
   entityType: "",
-  address: "",
-  jurisdiction: "",
-  phone: "",
-  supportHours: "",
+  address: "1104 Janakpuri\nBareilly, Uttar Pradesh 234001",
+  // Taken from the address above rather than chosen: the governing-law clause
+  // naming a city the shop does not trade from is the kind of clause a court
+  // reads against whoever drafted it.
+  jurisdiction: "Bareilly",
+  phone: "+91 76687 92739",
+  supportHours: "Monday to Saturday, 10am to 7pm IST",
   // Already published in the site footer, so it is not a secret and not a guess.
   email: "hello@shukarsh.com",
   gstin: "",
-  dispatchWindow: "",
+  // Matches the promise already made on every product page and in the delivery
+  // policy. Two places claiming different dispatch times is the drift these
+  // pages exist to prevent.
+  dispatchWindow: "1 to 2 working days",
   grievanceName: "",
   grievanceDesignation: "",
-  grievanceEmail: "",
-  grievancePhone: "",
+  // A one-person shop answers grievances on the same line it answers everything
+  // else. Split these out if that ever stops being true.
+  grievanceEmail: "hello@shukarsh.com",
+  grievancePhone: "+91 76687 92739",
 };
 
 /**
