@@ -402,14 +402,33 @@ function withToken<T>(path: string, token: string, options?: RequestInit): Promi
   });
 }
 
-export async function createProduct(token: string, data: Partial<Product>): Promise<{ product: Product }> {
+/** One answer, as the products endpoint takes it: the question's key and its value. */
+export interface AttributeAnswerInput {
+  key: string;
+  values: string[];
+  text?: string | null;
+  number?: number | null;
+}
+
+/**
+ * A product as it is written, which is not a product as it is read.
+ *
+ * `attributes` goes in keyed by question and comes back with the labels and
+ * kinds the category attached to them, so the two shapes cannot be the same
+ * type — and `Partial<Product>` would quietly accept the read shape.
+ */
+export type ProductInput = Omit<Partial<Product>, "attributes"> & {
+  attributes?: AttributeAnswerInput[];
+};
+
+export async function createProduct(token: string, data: ProductInput): Promise<{ product: Product }> {
   return withToken<{ product: Product }>("/products", token, {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export async function updateProduct(token: string, id: string, data: Partial<Product>): Promise<{ product: Product }> {
+export async function updateProduct(token: string, id: string, data: ProductInput): Promise<{ product: Product }> {
   return withToken<{ product: Product }>(`/products/${id}`, token, {
     method: "PUT",
     body: JSON.stringify(data),
