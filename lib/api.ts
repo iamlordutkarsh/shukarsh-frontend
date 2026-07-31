@@ -3,6 +3,8 @@ import {
   AdminReview,
   AnalyticsSummary,
   AppliedCoupon,
+  AttributeDefinition,
+  AttributeKind,
   Category,
   Coupon,
   CourierOption,
@@ -41,8 +43,65 @@ async function fetcher<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function getCategories(): Promise<{ categories: Category[] }> {
-  return fetcher<{ categories: Category[] }>("/categories", { next: { revalidate: 60 } });
+/**
+ * Both shapes, because the API returns both from one read: `tree` for a picker
+ * that walks levels, `categories` flat for a select box naming a parent.
+ */
+export async function getCategories(): Promise<{ categories: Category[]; tree: Category[] }> {
+  return fetcher<{ categories: Category[]; tree: Category[] }>("/categories", {
+    next: { revalidate: 60 },
+  });
+}
+
+/** Every question a product filed in this category has to answer, ancestors included. */
+export async function getCategoryAttributes(
+  categoryId: string
+): Promise<{ attributes: AttributeDefinition[] }> {
+  return fetcher<{ attributes: AttributeDefinition[] }>(`/categories/${categoryId}/attributes`, {
+    cache: "no-store",
+  });
+}
+
+export interface AttributeDefinitionInput {
+  label: string;
+  kind: AttributeKind;
+  unit?: string | null;
+  required: boolean;
+  filterable: boolean;
+  /** The whole list, in order. Ignored for TEXT and NUMBER. */
+  options: string[];
+}
+
+/**
+ * Saves one question on one category.
+ *
+ * Addressed by `key` rather than an id, so the same call creates it or edits it,
+ * and defining a key a parent already uses reads as an override rather than a
+ * clash.
+ */
+export async function saveCategoryAttribute(
+  token: string,
+  categoryId: string,
+  key: string,
+  payload: AttributeDefinitionInput
+): Promise<{ attributes: AttributeDefinition[] }> {
+  return withToken<{ attributes: AttributeDefinition[] }>(
+    `/categories/${categoryId}/attributes/${key}`,
+    token,
+    { method: "PUT", body: JSON.stringify(payload) }
+  );
+}
+
+export async function deleteCategoryAttribute(
+  token: string,
+  categoryId: string,
+  key: string
+): Promise<{ attributes: AttributeDefinition[] }> {
+  return withToken<{ attributes: AttributeDefinition[] }>(
+    `/categories/${categoryId}/attributes/${key}`,
+    token,
+    { method: "DELETE" }
+  );
 }
 
 export async function getCategory(slug: string): Promise<{ category: Category & { products: Product[] } }> {

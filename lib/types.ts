@@ -4,6 +4,55 @@ export interface Category {
   slug: string;
   description: string | null;
   image: string | null;
+  /** Order among its siblings. A menu is not alphabetical. */
+  position: number;
+  parentId: string | null;
+  /** Only on the tree read: this category's own subcategories, in order. */
+  children?: Category[];
+  /** Only on a single category read. Root first, this category last. */
+  path?: { id: string; name: string; slug: string }[];
+}
+
+/** How a category is named from somewhere else: a product, a breadcrumb. */
+export interface CategoryRef {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export type AttributeKind = "SELECT" | "MULTISELECT" | "TEXT" | "NUMBER";
+
+/**
+ * One question a category asks about its products.
+ *
+ * Inherited from every ancestor, which is why `categoryId` may not be the
+ * category that was asked: "Country of origin" is defined once at the root and
+ * answered everywhere below it.
+ */
+export interface AttributeDefinition {
+  id: string;
+  key: string;
+  label: string;
+  kind: AttributeKind;
+  /** What a NUMBER is counted in. Null for every other kind. */
+  unit: string | null;
+  required: boolean;
+  filterable: boolean;
+  position: number;
+  options: { id: string; value: string; position: number }[];
+  /** Which category actually defines it, and whether that is an ancestor. */
+  categoryId: string;
+  categoryName?: string;
+  inherited: boolean;
+}
+
+/** What one product answered. Always a list, so one shape reads for every kind. */
+export interface ProductAttribute {
+  key: string;
+  label: string;
+  kind: AttributeKind;
+  unit: string | null;
+  values: string[];
 }
 
 /** One buyable cell: a colour, a size, or the pairing of the two. */
@@ -82,12 +131,27 @@ export interface Product {
    */
   priceFrom: number;
   priceTo: number;
+  countryOfOrigin: string | null;
+  manufacturerName: string | null;
+  manufacturerAddr: string | null;
+  manufacturerPin: string | null;
+  /**
+   * The answers to its category's questions, in the order the category asks
+   * them. Structured and consistent across the catalogue, unlike `specs`, which
+   * stays as the escape hatch for a one-off fact.
+   */
+  attributes: ProductAttribute[];
   /** The spec table. Empty when the shop gave none. */
   specs: ProductSpec[];
   /** The long copy, as blocks. Empty when the shop gave none. */
   details: DetailBlock[];
   categoryId: string;
-  category: Category;
+  /**
+   * Only what a product carries about where it is filed. Narrower than Category
+   * on purpose: serializeProduct sends these three fields and no more, so typing
+   * it as the whole thing promised a description and a parent that never arrive.
+   */
+  category: CategoryRef;
   createdAt: string;
   /** When the shop last touched it, which is what the sitemap reports. */
   updatedAt: string;

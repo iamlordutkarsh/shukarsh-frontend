@@ -49,16 +49,17 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   if (!category) notFound();
 
-  /** The category endpoint omits the nested category on each product. */
+  /**
+   * The category endpoint omits the nested category on each product.
+   *
+   * Filled in from the page's own category, which is now only mostly right: this
+   * listing includes subcategories, so a card may name the branch it was reached
+   * through rather than the leaf it is filed under. That is the label a shopper
+   * expects on this page anyway — the crumb they clicked.
+   */
   const products: Product[] = category.products.map((product) => ({
     ...product,
-    category: {
-      id: category.id,
-      name: category.name,
-      slug: category.slug,
-      description: category.description,
-      image: category.image,
-    },
+    category: { id: category.id, name: category.name, slug: category.slug },
   }));
 
   return (
