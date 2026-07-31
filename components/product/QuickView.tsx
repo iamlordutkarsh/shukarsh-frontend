@@ -15,6 +15,7 @@ import { PastelTile } from "../ui/PastelTile";
 import { Pill } from "../ui/Pill";
 import { useToast } from "../ui/Toast";
 import { QuantityStepper } from "./QuantityStepper";
+import { SizePicker } from "./SizePicker";
 import { WishlistButton } from "./WishlistButton";
 
 export function QuickView({
@@ -32,16 +33,23 @@ export function QuickView({
   const [quantity, setQuantity] = useState(1);
 
   const discount = discountPercent(product.price, product.comparePrice);
-  const soldOut = product.stock <= 0;
+
+  const sizes = (product.variants ?? []).filter((variant) => variant.isActive);
+  const [variantId, setVariantId] = useState<string | null>(sizes.length === 1 ? sizes[0].id : null);
+  const chosen = sizes.find((size) => size.id === variantId) ?? null;
+
+  const soldOut = sizes.length > 0 ? sizes.every((size) => size.stock <= 0) : product.stock <= 0;
+  const needsSize = sizes.length > 0 && !chosen;
+  const available = chosen ? chosen.stock : product.stock;
 
   const handleAdd = () => {
-    addToCart(product, quantity);
+    addToCart(product, quantity, chosen ? { id: chosen.id, label: chosen.label } : null);
     onClose();
     openOverlay("cart");
     toast({
       tone: "cart",
       title: `Added ${quantity} to bag`,
-      description: product.name,
+      description: chosen ? `${product.name} · ${chosen.label}` : product.name,
       duration: 2800,
     });
   };
@@ -76,7 +84,9 @@ export function QuickView({
         >
           <motion.div variants={fadeUp} className="flex items-center gap-2">
             <Pill tone="lavender">{product.category.name}</Pill>
-            {!soldOut && product.stock <= 5 && <Pill tone="peach">Only {product.stock} left</Pill>}
+            {!soldOut && !needsSize && available <= 5 && (
+              <Pill tone="peach">Only {available} left</Pill>
+            )}
           </motion.div>
 
           <motion.h2 variants={fadeUp} className="text-3xl leading-tight text-balance">
@@ -94,15 +104,29 @@ export function QuickView({
             {product.description || "A little treat picked just for you."}
           </motion.p>
 
+          {sizes.length > 0 && (
+            <motion.div variants={fadeUp}>
+              <SizePicker
+                sizes={sizes}
+                value={variantId}
+                onChange={(next) => {
+                  setVariantId(next);
+                  const stock = sizes.find((s) => s.id === next)?.stock ?? 0;
+                  setQuantity((current) => Math.max(1, Math.min(current, stock)));
+                }}
+              />
+            </motion.div>
+          )}
+
           <motion.div variants={fadeUp} className="mt-auto flex flex-wrap items-center gap-3 pt-2">
             <QuantityStepper
               value={quantity}
               onChange={setQuantity}
-              max={Math.max(1, Math.min(10, product.stock))}
+              max={Math.max(1, Math.min(10, available))}
             />
-            <Button onClick={handleAdd} disabled={soldOut} className="flex-1 min-w-40">
+            <Button onClick={handleAdd} disabled={soldOut || needsSize} className="flex-1 min-w-40">
               <Sparkles className="h-4 w-4" strokeWidth={2.4} />
-              {soldOut ? "Sold out" : "Add to bag"}
+              {soldOut ? "Sold out" : needsSize ? "Choose a size" : "Add to bag"}
             </Button>
             <WishlistButton product={product} />
           </motion.div>

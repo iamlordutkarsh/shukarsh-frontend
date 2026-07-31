@@ -37,6 +37,7 @@ export function ProductCard({ product, priority = false, className }: ProductCar
   const image = product.images[0];
   const discount = discountPercent(product.price, product.comparePrice);
   const soldOut = product.stock <= 0;
+  const hasSizes = (product.variants ?? []).some((variant) => variant.isActive);
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (reduced) return;
@@ -50,7 +51,17 @@ export function ProductCard({ product, priority = false, className }: ProductCar
     pointerY.set(0);
   };
 
+  /**
+   * A one-tap add cannot choose a size, and picking one on the customer's behalf
+   * is how the wrong size ends up in the box. So for a product with sizes the
+   * same button opens the quick view, where there is somewhere to choose.
+   */
   const handleQuickAdd = () => {
+    if (hasSizes) {
+      setQuickView(true);
+      return;
+    }
+
     addToCart(product, 1);
     open("cart");
     toast({ tone: "cart", title: "Added to bag", description: product.name, duration: 2800 });
@@ -149,7 +160,7 @@ export function ProductCard({ product, priority = false, className }: ProductCar
                 className="pointer-events-auto absolute inset-x-3 bottom-3 z-20 flex h-11 items-center justify-center gap-2 rounded-full bg-ink-900/90 text-[0.8125rem] font-semibold text-white shadow-lift backdrop-blur transition-all duration-500 ease-[var(--ease-soft)] hover:bg-lavender-600 sm:pointer-events-none sm:translate-y-[130%] sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100"
               >
                 <ShoppingBag className="h-4 w-4" strokeWidth={2.3} />
-                Add to bag
+                {hasSizes ? "Choose a size" : "Add to bag"}
               </motion.button>
             )}
           </div>
