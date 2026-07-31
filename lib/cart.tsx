@@ -14,6 +14,8 @@ export interface CartItem {
   variantId?: string | null;
   /** Kept beside the id so a bag can be listed without refetching the product. */
   variantLabel?: string | null;
+  /** The same, for the colour. Null on a product sold in sizes only. */
+  variantColour?: string | null;
   quantity: number;
 }
 
@@ -30,6 +32,12 @@ export function cartLineKey(item: { product: Product; variantId?: string | null 
 export interface ChosenVariant {
   id: string;
   label: string;
+  colour: string | null;
+}
+
+/** What a bag line is called on screen: "Midnight blue · M". */
+export function lineVariantName(item: CartItem): string | null {
+  return [item.variantColour, item.variantLabel].filter(Boolean).join(" · ") || null;
 }
 
 /**
@@ -53,6 +61,19 @@ export function toApiItems(items: CartItem[]): { productId: string; variantId?: 
  * Only ever a cap on the stepper: the bag holds a snapshot that may be days old,
  * and the real answer comes from the server when the bag is priced.
  */
+/**
+ * What one of this line costs.
+ *
+ * The snapshot in the bag may be days old and a cell may price differently from
+ * its product, so this reads the cell when the bag still knows about it and
+ * falls back to the product otherwise. Display only, like lineStock.
+ */
+export function linePrice(item: CartItem): number {
+  if (!item.variantId) return item.product.price;
+  const cell = item.product.variants?.find((variant) => variant.id === item.variantId);
+  return cell ? cell.price : item.product.price;
+}
+
 export function lineStock(item: CartItem): number {
   if (!item.variantId) return item.product.stock;
   const size = item.product.variants?.find((variant) => variant.id === item.variantId);
@@ -84,7 +105,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const line = {
       product,
       variantId: variant?.id ?? null,
-      variantLabel: variant?.label ?? null,
+      variantLabel: variant?.label || null,
+      variantColour: variant?.colour ?? null,
       quantity,
     };
     const key = cartLineKey(line);
@@ -127,7 +149,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const line = current.find((item) => cartLineKey(item) === key);
       if (!line) return current;
 
-      const chosen = { ...line, variantId: variant.id, variantLabel: variant.label };
+      const chosen = {
+        ...line,
+        variantId: variant.id,
+        variantLabel: variant.label || null,
+        variantColour: variant.colour,
+      };
       const chosenKey = cartLineKey(chosen);
       const clash = current.find((item) => item !== line && cartLineKey(item) === chosenKey);
 
@@ -156,7 +183,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => {
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalPrice = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+    // Priced off the chosen cell where there is one, since a size may cost more
+    // than the product it belongs to. Only ever a preview: the server prices the
+    // bag again from its own rows before anybody is charged.
+    const totalPrice = items.reduce((sum, item) => sum + linePrice(item) * item.quantity, 0);
     return {
       items,
       addToCart,
