@@ -35,9 +35,15 @@ export function ProductCard({ product, priority = false, className }: ProductCar
   const rotateY = useSpring(useTransform(pointerX, [-0.5, 0.5], [-7, 7]), springSoft);
 
   const image = product.images[0];
-  const discount = discountPercent(product.price, product.comparePrice);
+  const discount = discountPercent(product.priceFrom ?? product.price, product.comparePrice);
   const soldOut = product.stock <= 0;
-  const hasSizes = (product.variants ?? []).some((variant) => variant.isActive);
+  const hasOptions = (product.variants ?? []).some((variant) => variant.isActive);
+  // A card cannot show every price a product has, so it shows the cheapest and
+  // says so. Quoting one figure when the XL costs more is how somebody reaches
+  // checkout at a number they did not expect.
+  const priceFrom = product.priceFrom ?? product.price;
+  const spread = (product.priceTo ?? product.price) > priceFrom;
+  const swatches = (product.colours ?? []).filter((colour) => colour.isActive).slice(0, 5);
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (reduced) return;
@@ -52,12 +58,13 @@ export function ProductCard({ product, priority = false, className }: ProductCar
   };
 
   /**
-   * A one-tap add cannot choose a size, and picking one on the customer's behalf
-   * is how the wrong size ends up in the box. So for a product with sizes the
-   * same button opens the quick view, where there is somewhere to choose.
+   * A one-tap add cannot choose a colour or a size, and picking one on the
+   * customer's behalf is how the wrong thing ends up in the box. So for a product
+   * with options the same button opens the quick view, where there is somewhere
+   * to choose.
    */
   const handleQuickAdd = () => {
-    if (hasSizes) {
+    if (hasOptions) {
       setQuickView(true);
       return;
     }
@@ -160,7 +167,7 @@ export function ProductCard({ product, priority = false, className }: ProductCar
                 className="pointer-events-auto absolute inset-x-3 bottom-3 z-20 flex h-11 items-center justify-center gap-2 rounded-full bg-ink-900/90 text-[0.8125rem] font-semibold text-white shadow-lift backdrop-blur transition-all duration-500 ease-[var(--ease-soft)] hover:bg-lavender-600 sm:pointer-events-none sm:translate-y-[130%] sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100"
               >
                 <ShoppingBag className="h-4 w-4" strokeWidth={2.3} />
-                {hasSizes ? "Choose a size" : "Add to bag"}
+                {hasOptions ? "Choose an option" : "Add to bag"}
               </motion.button>
             )}
           </div>
@@ -184,9 +191,32 @@ export function ProductCard({ product, priority = false, className }: ProductCar
               </span>
             )}
 
+            {/* A hint that there is a choice to make, not the choice itself:
+                picking a colour belongs on a page that can show it properly. */}
+            {swatches.length > 0 && (
+              <span className="flex items-center gap-1 pt-1.5" aria-label={`${swatches.length} colours`}>
+                {swatches.map((colour) => (
+                  <span
+                    key={colour.id}
+                    title={colour.name}
+                    className="h-3 w-3 rounded-full ring-1 ring-line"
+                    style={{ backgroundColor: colour.hex ?? "#e7e3f0" }}
+                  />
+                ))}
+                {(product.colours ?? []).filter((colour) => colour.isActive).length > swatches.length && (
+                  <span className="text-[0.6875rem] font-semibold text-muted">
+                    +{(product.colours ?? []).filter((colour) => colour.isActive).length - swatches.length}
+                  </span>
+                )}
+              </span>
+            )}
+
             <div className="mt-auto flex items-baseline gap-2 pt-1.5">
-              <span className="text-lg font-bold tracking-tight text-ink">{formatPrice(product.price)}</span>
-              {product.comparePrice && product.comparePrice > product.price && (
+              <span className="text-lg font-bold tracking-tight text-ink">
+                {spread && <span className="mr-1 text-xs font-semibold text-muted">from</span>}
+                {formatPrice(priceFrom)}
+              </span>
+              {product.comparePrice && product.comparePrice > priceFrom && (
                 <span className="text-xs text-faint line-through">{formatPrice(product.comparePrice)}</span>
               )}
             </div>

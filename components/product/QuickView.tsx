@@ -5,6 +5,13 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { useCart } from "../../lib/cart";
+import {
+  findVariant,
+  initialChoice,
+  sellableColours,
+  sellableVariants,
+  variantName,
+} from "../../lib/variants";
 import { staggerParent, fadeUp } from "../../lib/motion";
 import type { Product } from "../../lib/types";
 import { useUI } from "../../lib/ui-store";
@@ -15,7 +22,7 @@ import { PastelTile } from "../ui/PastelTile";
 import { Pill } from "../ui/Pill";
 import { useToast } from "../ui/Toast";
 import { QuantityStepper } from "./QuantityStepper";
-import { SizePicker } from "./SizePicker";
+import { VariantPicker } from "./VariantPicker";
 import { WishlistButton } from "./WishlistButton";
 
 export function QuickView({
@@ -34,22 +41,33 @@ export function QuickView({
 
   const discount = discountPercent(product.price, product.comparePrice);
 
-  const sizes = (product.variants ?? []).filter((variant) => variant.isActive);
-  const [variantId, setVariantId] = useState<string | null>(sizes.length === 1 ? sizes[0].id : null);
-  const chosen = sizes.find((size) => size.id === variantId) ?? null;
+  const cells = sellableVariants(product);
+  const colours = sellableColours(product);
+  const start = initialChoice(product);
+  const [colourId, setColourId] = useState<string | null>(start.colourId);
+  const [label, setLabel] = useState<string>(start.label);
 
-  const soldOut = sizes.length > 0 ? sizes.every((size) => size.stock <= 0) : product.stock <= 0;
-  const needsSize = sizes.length > 0 && !chosen;
-  const available = chosen ? chosen.stock : product.stock;
+  const chosen = findVariant(product, colourId, label);
+  const colourName = colours.find((colour) => colour.id === chosen?.colourId)?.name ?? null;
+  const chosenName = chosen ? variantName(colourName, chosen.label) : null;
+
+  const soldOut = cells.length > 0 ? cells.every((cell) => cell.stock <= 0) : product.stock <= 0;
+  // Incomplete until every axis this product actually has has been answered.
+  const needsChoice = cells.length > 0 && (!chosen || (colours.length > 0 && !colourId));
+  const available = chosen ? chosen.stock : cells.length > 0 ? 0 : product.stock;
 
   const handleAdd = () => {
-    addToCart(product, quantity, chosen ? { id: chosen.id, label: chosen.label } : null);
+    addToCart(
+      product,
+      quantity,
+      chosen ? { id: chosen.id, label: chosen.label, colour: colourName } : null
+    );
     onClose();
     openOverlay("cart");
     toast({
       tone: "cart",
       title: `Added ${quantity} to bag`,
-      description: chosen ? `${product.name} · ${chosen.label}` : product.name,
+      description: chosenName ? `${product.name} · ${chosenName}` : product.name,
       duration: 2800,
     });
   };
@@ -84,7 +102,7 @@ export function QuickView({
         >
           <motion.div variants={fadeUp} className="flex items-center gap-2">
             <Pill tone="lavender">{product.category.name}</Pill>
-            {!soldOut && !needsSize && available <= 5 && (
+            {!soldOut && !needsChoice && available <= 5 && (
               <Pill tone="peach">Only {available} left</Pill>
             )}
           </motion.div>
@@ -94,7 +112,9 @@ export function QuickView({
           </motion.h2>
 
           <motion.div variants={fadeUp} className="flex items-baseline gap-3">
-            <span className="text-2xl font-bold tracking-tight text-ink">{formatPrice(product.price)}</span>
+            <span className="text-2xl font-bold tracking-tight text-ink">
+              {formatPrice(chosen ? chosen.price : product.priceFrom)}
+            </span>
             {product.comparePrice && product.comparePrice > product.price && (
               <span className="text-sm text-faint line-through">{formatPrice(product.comparePrice)}</span>
             )}
@@ -104,16 +124,14 @@ export function QuickView({
             {product.description || "A little treat picked just for you."}
           </motion.p>
 
-          {sizes.length > 0 && (
+          {cells.length > 0 && (
             <motion.div variants={fadeUp}>
-              <SizePicker
-                sizes={sizes}
-                value={variantId}
-                onChange={(next) => {
-                  setVariantId(next);
-                  const stock = sizes.find((s) => s.id === next)?.stock ?? 0;
-                  setQuantity((current) => Math.max(1, Math.min(current, stock)));
-                }}
+              <VariantPicker
+                product={product}
+                colourId={colourId}
+                label={label}
+                onColour={setColourId}
+                onLabel={setLabel}
               />
             </motion.div>
           )}
@@ -124,9 +142,9 @@ export function QuickView({
               onChange={setQuantity}
               max={Math.max(1, Math.min(10, available))}
             />
-            <Button onClick={handleAdd} disabled={soldOut || needsSize} className="flex-1 min-w-40">
+            <Button onClick={handleAdd} disabled={soldOut || needsChoice} className="flex-1 min-w-40">
               <Sparkles className="h-4 w-4" strokeWidth={2.4} />
-              {soldOut ? "Sold out" : needsSize ? "Choose a size" : "Add to bag"}
+              {soldOut ? "Sold out" : needsChoice ? "Choose an option" : "Add to bag"}
             </Button>
             <WishlistButton product={product} />
           </motion.div>
