@@ -126,8 +126,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const specs = [
     { label: "Category", value: product.category.name },
-    // The shop's own rows first among the derived ones, because "Material:
-    // stainless steel" is what somebody came to find and the item code is not.
+    /**
+     * The category's own questions first, then the shop's one-off rows, then
+     * what the system can work out for itself. "Fabric: cotton" is what somebody
+     * came to find; the item code is not.
+     */
+    ...product.attributes.map((attribute) => ({
+      label: attribute.label,
+      value: attribute.unit
+        ? `${attribute.values.join(", ")} ${attribute.unit}`
+        : attribute.values.join(", "),
+    })),
     ...product.specs,
     // Short and stable, like an order number. Slicing the slug produced codes
     // cut off mid-word, which reads as a bug rather than an identifier.
@@ -136,6 +145,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
     product.weightKg ? { label: "Weight", value: `${product.weightKg} kg` } : null,
     { label: "Availability", value: soldOut ? "Out of stock" : `${product.stock} in stock` },
     product.hsn ? { label: "HSN", value: product.hsn } : null,
+    // Legally required on the label, so it belongs where a customer can read it
+    // rather than only on the packaging.
+    product.countryOfOrigin ? { label: "Country of origin", value: product.countryOfOrigin } : null,
+    product.manufacturerName ? { label: "Marketed by", value: product.manufacturerName } : null,
+    product.manufacturerAddr
+      ? {
+          label: "Address",
+          value: [product.manufacturerAddr, product.manufacturerPin].filter(Boolean).join(", "),
+        }
+      : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
