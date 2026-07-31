@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgePercent, CreditCard, Lock, MapPin, ShoppingBag, Truck, TriangleAlert } from "lucide-react";
+import { BadgePercent, CreditCard, Lock, MapPin, ShoppingBag, Truck, TriangleAlert, Wallet } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -14,6 +14,7 @@ import {
   verifyRazorpayPayment,
   type DeliveryQuote,
   type OrderQuote,
+  type PaymentMethod,
 } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useCart } from "../../lib/cart";
@@ -83,6 +84,48 @@ function normalizePhone(value: string) {
     .replace(/^0+/, "")
     .replace(/^91(?=\d{10}$)/, "")
     .slice(0, 10);
+}
+
+/** A radio the whole row selects, since a 16px circle is not a tap target. */
+function PayOption({
+  checked,
+  onSelect,
+  title,
+  detail,
+  disabled = false,
+  tone = "default",
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  title: string;
+  detail: string;
+  disabled?: boolean;
+  tone?: "default" | "muted";
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-3 rounded-3xl border px-4 py-3.5 transition-colors",
+        checked ? "border-lavender-300 bg-lavender-50" : "border-line bg-surface hover:bg-lavender-50/50",
+        disabled && "cursor-not-allowed opacity-60"
+      )}
+    >
+      <input
+        type="radio"
+        name="paymentMethod"
+        className="mt-1 h-4 w-4 shrink-0 accent-lavender-500"
+        checked={checked}
+        disabled={disabled}
+        onChange={onSelect}
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className={cn("mt-0.5 block text-xs leading-relaxed", tone === "muted" ? "text-rose-500" : "text-muted")}>
+          {detail}
+        </span>
+      </span>
+    </label>
+  );
 }
 
 export default function CheckoutPage() {
@@ -186,7 +229,9 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [couponPending, setCouponPending] = useState(false);
 
-  const quoteFor = `${quoteKey}|${form.state}|${couponCode}`;
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("PREPAID");
+
+  const quoteFor = `${quoteKey}|${form.state}|${couponCode}|${payMethod}`;
   const [quoted, setQuoted] = useState<{ key: string; cartKey: string; data: OrderQuote } | null>(null);
 
   useEffect(() => {
@@ -206,6 +251,7 @@ export default function CheckoutPage() {
           // Half of a typed address is not an address. Sending one would have
           // the quote rejected and take the GST line and the discount with it.
           ...(EMAIL.test(form.email) ? { email: form.email } : {}),
+          paymentMethod: payMethod,
         },
         token || undefined
       )
@@ -226,7 +272,7 @@ export default function CheckoutPage() {
       active = false;
       clearTimeout(timer);
     };
-  }, [quoteFor, cartKey, lineItems, pincodeReady, form.zip, form.state, form.email, couponCode, token]);
+  }, [quoteFor, cartKey, lineItems, pincodeReady, form.zip, form.state, form.email, couponCode, payMethod, token]);
 
   /**
    * The last quote that settled, kept on screen while the next one is in
@@ -284,6 +330,16 @@ export default function CheckoutPage() {
   // Until a quote settles, the locally summed total is the honest thing to show.
   const displayTotal = priced ? priced.totalAmount : totalPrice + deliveryFee;
 
+  /**
+   * The server decides whether this bag may be paid in cash, and says why not.
+   * Read straight from the quote rather than mirrored into state: a bag that
+   * grows past the cap has to lose the option on the spot, and resetting a
+   * choice from an effect is how the two get out of step.
+   */
+  const codRefused = priced?.codError ?? null;
+  const codFee = priced?.codFee ?? 0;
+  const payingCash = payMethod === "COD" && !codRefused;
+
   if (items.length === 0) {
     return (
       <div className="section-shell py-20">
@@ -321,7 +377,7 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      await loadRazorpayScript();
+      if (!payingCash) await loadRazorpayScript();
 
       const data = await createRazorpayOrder(
         {
@@ -338,11 +394,22 @@ export default function CheckoutPage() {
           },
           email: form.email,
           ...(couponCode ? { couponCode } : {}),
+          paymentMethod: payingCash ? "COD" : "PREPAID",
         },
         token || undefined
       );
 
+      // Nothing to pay for now, so the order is already placed and the only
+      // thing left is to say so.
+      if (data.paymentMethod === "COD") {
+        clearCart();
+        sessionStorage.setItem(ORDER_PLACED_KEY, data.orderId);
+        router.push("/checkout/success");
+        return;
+      }
+
       if (!window.Razorpay) throw new Error("Razorpay checkout failed to load");
+      if (!data.razorpayOrderId || !data.keyId) throw new Error("Could not start the payment");
 
       const razorpay = new window.Razorpay({
         key: data.keyId,
@@ -596,14 +663,59 @@ export default function CheckoutPage() {
                 )}
               </motion.section>
 
+              <motion.section
+                variants={fadeUp}
+                className="rounded-4xl bg-surface/90 p-6 shadow-soft sm:p-8 hairline"
+                aria-label="How you want to pay"
+              >
+                <h2 className="flex items-center gap-2 font-display text-xl text-ink">
+                  <Wallet className="h-4 w-4 text-lavender-500" strokeWidth={2.4} />
+                  How would you like to pay?
+                </h2>
+
+                <div className="mt-4 space-y-3">
+                  <PayOption
+                    checked={!payingCash}
+                    onSelect={() => setPayMethod("PREPAID")}
+                    title="Pay now"
+                    detail="UPI, cards, wallets or net banking, through Razorpay."
+                  />
+                  <PayOption
+                    checked={payingCash}
+                    onSelect={() => setPayMethod("COD")}
+                    disabled={codRefused !== null && payMethod !== "COD"}
+                    title="Cash on delivery"
+                    detail={
+                      codRefused ??
+                      `Pay the courier when it arrives. Adds ${formatPrice(codFee || 49)} to cover collection.`
+                    }
+                    tone={codRefused ? "muted" : "default"}
+                  />
+                </div>
+
+                {codRefused && payMethod === "COD" && (
+                  <p className="mt-3 text-xs text-rose-500" role="status">
+                    {codRefused} Pay now to place this order.
+                  </p>
+                )}
+              </motion.section>
+
               <motion.div variants={fadeUp}>
                 <Button type="submit" loading={loading} size="lg" className="w-full" disabled={unserviceable}>
                   <CreditCard className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.3} />
-                  {loading ? "Opening Razorpay" : `Pay ${formatPrice(displayTotal)}`}
+                  {loading
+                    ? payingCash
+                      ? "Placing your order"
+                      : "Opening Razorpay"
+                    : payingCash
+                      ? `Place order · ${formatPrice(displayTotal)} on delivery`
+                      : `Pay ${formatPrice(displayTotal)}`}
                 </Button>
                 <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-faint">
                   <Lock className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  Cards, UPI, wallets and net banking, all handled by Razorpay.
+                  {payingCash
+                    ? "Keep the exact amount ready. The courier collects it at your door."
+                    : "Cards, UPI, wallets and net banking, all handled by Razorpay."}
                 </p>
                 {/* One click from the pay button, which is where the rules want it. */}
                 <p className="mt-2 text-center text-xs leading-relaxed text-faint">
@@ -729,6 +841,12 @@ export default function CheckoutPage() {
                     shippingLabel()
                   )}
                 </div>
+                {codFee > 0 && (
+                  <div className="flex justify-between text-muted">
+                    <dt>Cash collection</dt>
+                    <dd className="font-semibold text-ink">{formatPrice(codFee)}</dd>
+                  </div>
+                )}
                 {etaDays !== null && !unserviceable && (
                   <p className="text-xs text-faint">
                     Arrives in about {etaDays} day{etaDays === 1 ? "" : "s"}

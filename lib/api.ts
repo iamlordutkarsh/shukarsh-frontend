@@ -129,10 +129,13 @@ export interface TaxSummary {
 
 export interface RazorpayOrderResponse {
   orderId: string;
-  razorpayOrderId: string;
+  /** Null on a cash order: there is no payment to open. */
+  razorpayOrderId: string | null;
   amount: number;
   currency: string;
-  keyId: string;
+  keyId: string | null;
+  paymentMethod: PaymentMethod;
+  codFee: number;
   itemsTotal: number;
   discountTotal: number;
   shippingAmount: number;
@@ -142,10 +145,18 @@ export interface RazorpayOrderResponse {
   tax: TaxSummary;
 }
 
+export type PaymentMethod = "PREPAID" | "COD";
+
 export interface OrderQuote {
   itemsTotal: number;
   discountTotal: number;
   shippingAmount: number;
+  /** What cash on delivery adds. Zero unless COD was asked for and allowed. */
+  codFee: number;
+  /** What this quote is priced for, which is prepaid whenever COD was refused. */
+  paymentMethod: PaymentMethod;
+  /** Why COD was refused, worded for the customer. */
+  codError: string | null;
   totalAmount: number;
   courierId: number | null;
   courierName: string | null;
@@ -171,6 +182,7 @@ export async function getOrderQuote(
     courierId?: number;
     couponCode?: string;
     email?: string;
+    paymentMethod?: PaymentMethod;
   },
   token?: string
 ): Promise<OrderQuote> {
@@ -244,6 +256,7 @@ export async function createRazorpayOrder(
     email: string;
     courierId?: number;
     couponCode?: string;
+    paymentMethod?: PaymentMethod;
   },
   token?: string
 ): Promise<RazorpayOrderResponse> {
