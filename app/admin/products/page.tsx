@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Ruler, Trash2 } from "lucide-react";
 import AdminLayout from "../../../components/AdminLayout";
 import { StockAdjuster } from "../../../components/admin/StockAdjuster";
 import { Button, ButtonLink } from "../../../components/ui/Button";
@@ -15,6 +15,7 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { useToast } from "../../../components/ui/Toast";
 import { deleteProduct, getProducts } from "../../../lib/api";
 import { isLowStock } from "../../../lib/inventory";
+import { usesDefaultPackaging } from "../../../lib/packaging";
 import { useAuth } from "../../../lib/auth";
 import { Product } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
@@ -39,6 +40,24 @@ function StockBadge({ product, onAdjust }: { product: Product; onAdjust: () => v
     >
       {product.stock <= 0 ? "Sold out" : `${product.stock} in stock`}
     </button>
+  );
+}
+
+/**
+ * Shown against the product rather than as one warning at the top, because the
+ * only useful version of this tells you which row to open.
+ */
+function PackagingFlag({ product, className }: { product: Product; className?: string }) {
+  if (!usesDefaultPackaging(product)) return null;
+  return (
+    <Pill tone="peach" className={className}>
+      <Ruler className="h-3 w-3" strokeWidth={2.6} />
+      Unmeasured
+      <span className="sr-only">
+        packaging: still the default half kilo box, so a shipping quote may come in under what the
+        courier charges
+      </span>
+    </Pill>
   );
 }
 
@@ -211,6 +230,7 @@ export default function AdminProductsPage() {
                               {product.name}
                             </Link>
                             <span className="mt-0.5 block truncate font-mono text-xs text-faint">{product.slug}</span>
+                            <PackagingFlag product={product} className="mt-1" />
                           </div>
                         </div>
                       </td>
@@ -254,6 +274,7 @@ export default function AdminProductsPage() {
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <Pill tone="lavender">{product.category.name}</Pill>
                       <StockBadge product={product} onAdjust={() => setAdjusting(product)} />
+                      <PackagingFlag product={product} />
                     </div>
                   </div>
                 </div>
