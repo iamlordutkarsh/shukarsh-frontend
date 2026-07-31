@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bullets, Facts, Para, PolicyPage, Section } from "../../components/legal/PolicyPage";
+import { getLogisticsConfig } from "../../lib/api";
 import { openGraphFor } from "../../lib/seo";
 import { SHOP, detail } from "../../lib/shop";
 
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
   openGraph: openGraphFor({ path: "/refunds", title: TITLE, description: INTRO }),
 };
 
-export default function RefundsPage() {
+export default async function RefundsPage() {
+  // Only to decide whether cash refunds are a case worth explaining. A shop with
+  // COD off should not describe a route no order can take.
+  const policy = await getLogisticsConfig().catch(() => null);
+
   return (
     <PolicyPage title={TITLE} intro={INTRO}>
       <Section title="The short version">
@@ -100,6 +105,13 @@ export default function RefundsPage() {
           Banks take five to seven working days to show it. We email you a reference number when the
           refund is sent, and if your bank cannot find the money, that reference is what they need.
         </Para>
+        {policy?.cod?.enabled && (
+          <Para>
+            An order paid in cash has no card to go back to, so we send it over UPI instead. We will ask
+            you for the UPI ID once, and you get the same reference number when it goes out. The cash
+            collection fee is refunded with it if the fault was ours.
+          </Para>
+        )}
       </Section>
 
       <Section title="If we get it wrong">

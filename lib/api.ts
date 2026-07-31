@@ -274,6 +274,8 @@ export interface LogisticsConfig {
   freeAbove: number;
   /** Charged below that, the same to every pincode. 0 means delivery is always free. */
   flatFee: number;
+  /** Absent on an older API, which is the cue to say nothing about COD. */
+  cod?: { enabled: boolean; fee: number; maxCollectable: number };
 }
 
 export async function getLogisticsConfig(): Promise<LogisticsConfig> {

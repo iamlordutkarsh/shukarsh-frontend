@@ -65,9 +65,26 @@ export default async function ShippingPage() {
         </Para>
       </Section>
 
+      {policy?.cod?.enabled && (
+        <Section title="Paying at the door">
+          <Para>
+            You can pay cash when the parcel arrives instead of paying now. It adds{" "}
+            {formatPrice(policy.cod.fee)} to the order, which is what the courier charges to collect and
+            hand over the money, and it is available up to {formatPrice(policy.cod.maxCollectable)} per
+            order including that fee. Above that, payment is online only.
+          </Para>
+          <Para>
+            Keep the amount ready: couriers often cannot give change, and a parcel that cannot be paid
+            for goes back. If a cash order has to be refunded later, the money goes back over UPI rather
+            than to a card, so we will ask you where to send it.
+          </Para>
+        </Section>
+      )}
+
       <Section title="How long it takes">
         <Para>
-          Orders are packed and handed to the courier within {detail(SHOP.dispatchWindow)} of payment.
+          Orders are packed and handed to the courier within {detail(SHOP.dispatchWindow)} of being
+          placed.
           After that, most of India sees a parcel in two to six working days, with the far north-east
           and the islands at the longer end.
         </Para>
