@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DEFAULT_PACKAGING } from "../lib/packaging";
 import { Category, Product } from "../lib/types";
 import { cn, discountPercent, formatPrice, round2 } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
@@ -36,8 +37,13 @@ export interface FormData {
   costPrice: string;
 }
 
-/** Matches the Prisma defaults so a blank field never blocks a save. */
-const PARCEL_DEFAULTS = { weightKg: "0.5", lengthCm: "15", breadthCm: "12", heightCm: "6" };
+/** Straight from the shared defaults, so the form and the list cannot disagree. */
+const PARCEL_DEFAULTS = {
+  weightKg: String(DEFAULT_PACKAGING.weightKg),
+  lengthCm: String(DEFAULT_PACKAGING.lengthCm),
+  breadthCm: String(DEFAULT_PACKAGING.breadthCm),
+  heightCm: String(DEFAULT_PACKAGING.heightCm),
+};
 
 /** The slabs GST actually uses. Same list the API validates against. */
 const GST_RATES = ["0", "0.25", "3", "5", "12", "18", "28"];
