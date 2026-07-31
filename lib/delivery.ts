@@ -6,6 +6,11 @@ import { getLogisticsConfig } from "./api";
 export interface DeliveryPolicy {
   freeAbove: number;
   flatFee: number;
+  /**
+   * Null when the shop has COD off, and also when the API is too old to say, so
+   * checkout can only offer cash once the server has confirmed it takes cash.
+   */
+  cod: { enabled: boolean; fee: number; maxCollectable: number } | null;
 }
 
 /**
@@ -21,7 +26,11 @@ function load(): Promise<DeliveryPolicy> {
 
   inFlight = getLogisticsConfig()
     .then((config) => {
-      cached = { freeAbove: config.freeAbove, flatFee: config.flatFee };
+      cached = {
+        freeAbove: config.freeAbove,
+        flatFee: config.flatFee,
+        cod: config.cod ?? null,
+      };
       return cached;
     })
     .finally(() => {

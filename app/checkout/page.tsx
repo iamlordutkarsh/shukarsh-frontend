@@ -338,6 +338,7 @@ export default function CheckoutPage() {
    */
   const codRefused = priced?.codError ?? null;
   const codFee = priced?.codFee ?? 0;
+  const cod = policy?.cod ?? null;
   const payingCash = payMethod === "COD" && !codRefused;
 
   if (items.length === 0) {
@@ -680,17 +681,24 @@ export default function CheckoutPage() {
                     title="Pay now"
                     detail="UPI, cards, wallets or net banking, through Razorpay."
                   />
-                  <PayOption
-                    checked={payingCash}
-                    onSelect={() => setPayMethod("COD")}
-                    disabled={codRefused !== null && payMethod !== "COD"}
-                    title="Cash on delivery"
-                    detail={
-                      codRefused ??
-                      `Pay the courier when it arrives. Adds ${formatPrice(codFee || 49)} to cover collection.`
-                    }
-                    tone={codRefused ? "muted" : "default"}
-                  />
+                  {/* Only once the server has said it takes cash and at what
+                      price. Offering it on a guess would let someone choose cash
+                      and have the order placed as unpaid card instead. */}
+                  {cod?.enabled && (
+                    <PayOption
+                      checked={payingCash}
+                      onSelect={() => setPayMethod("COD")}
+                      disabled={codRefused !== null && payMethod !== "COD"}
+                      title="Cash on delivery"
+                      detail={
+                        codRefused ??
+                        `Pay the courier when it arrives. Adds ${formatPrice(
+                          codFee || cod.fee
+                        )} to cover collection.`
+                      }
+                      tone={codRefused ? "muted" : "default"}
+                    />
+                  )}
                 </div>
 
                 {codRefused && payMethod === "COD" && (
