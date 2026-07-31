@@ -3,103 +3,256 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { Product } from "../../lib/types";
-import { updateVariants, type VariantInput } from "../../lib/api";
+import { updateVariants, type ColourInput, type VariantInput } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { FormCard } from "./FormField";
+import { ImageUploader } from "./ImageUploader";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
 import { cn } from "../../lib/utils";
 
-interface VariantRow extends VariantInput {
+interface ColourRow {
+  id?: string;
+  name: string;
+  hex: string | null;
+  images: string[];
+  isActive: boolean;
+}
+
+interface CellRow {
+  id?: string;
+  /** Null on a product sold in sizes only. */
+  colourName: string | null;
+  /** Empty on a product sold by colour alone. */
+  label: string;
+  /** Null means "whatever the product costs". Kept as typed, parsed on save. */
+  price: string;
+  isActive: boolean;
   /** Only shown, never edited here: stock moves through its own endpoint. */
   stock?: number;
-  /** A size that was removed from the list but still has history is switched
-   * off server-side, not deleted. Showing it lets the admin bring it back. */
-  inactive?: boolean;
+}
+
+/** What makes a cell its own cell, matched loosely so renaming a case is not a new row. */
+function cellKey(colourName: string | null, label: string): string {
+  return `${colourName?.trim().toLowerCase() ?? ""}::${label.trim().toLowerCase()}`;
 }
 
 /**
- * Manages the set of sizes a product comes in.
+ * The matrix the current colours and sizes imply, carrying over what is already
+ * known about each cell.
  *
- * The whole list is sent at once, because "S, M, L" is one decision and half of
- * it applied is a product selling sizes nobody chose. A size that disappears is
- * deactivated rather than deleted as soon as it has any history, so its ledger
- * and the orders that name it survive.
+ * Rebuilt rather than patched because adding one colour to three sizes adds three
+ * cells, and working out which ones by hand is how a product ends up selling a
+ * combination nobody set stock for. Anything the admin had already typed against
+ * a surviving cell is kept, keyed on the pair rather than the row's position.
+ */
+function buildCells(colours: ColourRow[], sizes: string[], previous: CellRow[]): CellRow[] {
+  if (colours.length === 0 && sizes.length === 0) return [];
+
+  const known = new Map(previous.map((cell) => [cellKey(cell.colourName, cell.label), cell]));
+  const colourNames: (string | null)[] = colours.length > 0 ? colours.map((c) => c.name) : [null];
+  const labels = sizes.length > 0 ? sizes : [""];
+
+  return colourNames.flatMap((colourName) =>
+    labels.map((label) => {
+      const existing = known.get(cellKey(colourName, label));
+      // The names are refreshed from the lists even on a cell we already knew, so
+      // fixing a typo in a colour renames its whole row rather than orphaning it.
+      return existing
+        ? { ...existing, colourName, label }
+        : { colourName, label, price: "", isActive: true };
+    })
+  );
+}
+
+/** The cells and colours a saved product came back with, as rows to edit. */
+function readProduct(product: Product): { colours: ColourRow[]; sizes: string[]; cells: CellRow[] } {
+  const colours: ColourRow[] = (product.colours ?? []).map((colour) => ({
+    id: colour.id,
+    name: colour.name,
+    hex: colour.hex,
+    images: colour.images,
+    isActive: colour.isActive,
+  }));
+
+  const nameById = new Map(colours.map((colour) => [colour.id, colour.name]));
+
+  const cells: CellRow[] = (product.variants ?? []).map((variant) => ({
+    id: variant.id,
+    colourName: variant.colourId ? (nameById.get(variant.colourId) ?? null) : null,
+    label: variant.label,
+    // Only an override is shown. A cell that simply costs what the product costs
+    // has to look empty, or every save would freeze today's price onto it.
+    price: variant.hasOwnPrice ? String(variant.price) : "",
+    isActive: variant.isActive,
+    stock: variant.stock,
+  }));
+
+  const sizes: string[] = [];
+  for (const cell of cells) {
+    if (cell.label && !sizes.some((size) => size.toLowerCase() === cell.label.toLowerCase())) {
+      sizes.push(cell.label);
+    }
+  }
+
+  return { colours, sizes, cells };
+}
+
+/**
+ * Manages the colours and sizes a product comes in.
  *
- * Stock for each size is shown but not edited here: adding or taking away units
- * goes through the stock adjustment endpoint, which writes to the ledger.
+ * Colours and sizes are edited as two short lists, and the buyable cells are
+ * their cross product. Typing the matrix out by hand would be twelve rows for
+ * three colours in four sizes, and the pair that got missed is the one a
+ * customer picks.
+ *
+ * The whole set is sent at once, because "S, M, L in red and blue" is one
+ * decision and half of it applied is a product selling combinations nobody chose.
+ * Anything with orders or stock history behind it is switched off server-side
+ * rather than deleted, so its ledger and the orders naming it survive.
+ *
+ * Stock is shown but not edited here: adding or taking away units goes through
+ * the stock adjustment endpoint, which writes to the ledger.
  */
 export function VariantManager({ product }: { product: Product }) {
   const { token } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
-  const [rows, setRows] = useState<VariantRow[]>(
-    (product.variants ?? []).map((v) => ({
-      id: v.id,
-      label: v.label,
-      isActive: v.isActive,
-      stock: v.stock,
-      inactive: !v.isActive,
-    }))
-  );
-  const [newLabel, setNewLabel] = useState("");
 
-  const addRow = () => {
-    const label = newLabel.trim();
+  const initial = readProduct(product);
+  const [colours, setColours] = useState<ColourRow[]>(initial.colours);
+  const [sizes, setSizes] = useState<string[]>(initial.sizes);
+  const [cells, setCells] = useState<CellRow[]>(initial.cells);
+  const [newSize, setNewSize] = useState("");
+
+  /** Every change to either axis reshapes the matrix, so the two move together. */
+  const applyAxes = (nextColours: ColourRow[], nextSizes: string[]) => {
+    setColours(nextColours);
+    setSizes(nextSizes);
+    setCells((current) => buildCells(nextColours, nextSizes, current));
+  };
+
+  const addColour = () => {
+    const taken = colours.some((colour) => colour.name.trim().toLowerCase() === "new colour");
+    applyAxes(
+      [
+        ...colours,
+        {
+          name: taken ? `New colour ${colours.length + 1}` : "New colour",
+          hex: "#cccccc",
+          images: [],
+          isActive: true,
+        },
+      ],
+      sizes
+    );
+  };
+
+  const updateColour = (index: number, patch: Partial<ColourRow>) => {
+    const next = colours.map((colour, i) => (i === index ? { ...colour, ...patch } : colour));
+    // Renaming a colour renames it across the matrix, so the axes are reapplied
+    // rather than the colour list alone being replaced.
+    if (patch.name !== undefined) applyAxes(next, sizes);
+    else setColours(next);
+  };
+
+  const removeColour = (index: number) => {
+    applyAxes(
+      colours.filter((_, i) => i !== index),
+      sizes
+    );
+  };
+
+  const addSize = () => {
+    const label = newSize.trim();
     if (!label) return;
-    if (rows.some((row) => row.label.toLowerCase() === label.toLowerCase())) {
+    if (sizes.some((size) => size.toLowerCase() === label.toLowerCase())) {
       toast({ title: "Duplicate size", description: "Two sizes cannot have the same name.", tone: "error" });
       return;
     }
-    setRows([...rows, { label, isActive: true }]);
-    setNewLabel("");
+    applyAxes(colours, [...sizes, label]);
+    setNewSize("");
   };
 
-  const removeRow = (index: number) => {
-    setRows(rows.filter((_, i) => i !== index));
+  const removeSize = (index: number) => {
+    applyAxes(
+      colours,
+      sizes.filter((_, i) => i !== index)
+    );
   };
 
-  const updateLabel = (index: number, label: string) => {
-    setRows(rows.map((row, i) => (i === index ? { ...row, label } : row)));
-  };
-
-  const toggleActive = (index: number) => {
-    setRows(rows.map((row, i) => (i === index ? { ...row, isActive: !row.isActive } : row)));
+  const updateCell = (index: number, patch: Partial<CellRow>) => {
+    setCells(cells.map((cell, i) => (i === index ? { ...cell, ...patch } : cell)));
   };
 
   const handleSave = async () => {
     if (!token) return;
-    const labels = rows.map((r) => r.label.trim());
-    if (labels.some((l) => !l)) {
-      toast({ title: "Empty label", description: "Every size needs a name.", tone: "error" });
+
+    const names = colours.map((colour) => colour.name.trim());
+    if (names.some((name) => !name)) {
+      toast({ title: "Empty colour", description: "Every colour needs a name.", tone: "error" });
       return;
     }
-    if (new Set(labels.map((l) => l.toLowerCase())).size !== labels.length) {
-      toast({ title: "Duplicate size", description: "Two sizes cannot have the same name.", tone: "error" });
+    if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) {
+      toast({ title: "Duplicate colour", description: "Two colours cannot have the same name.", tone: "error" });
+      return;
+    }
+
+    // Parsed before anything is sent, so a typo in one price does not save the
+    // other nineteen cells and then fail.
+    const priced = cells.map((cell) => ({ cell, price: cell.price.trim() }));
+    const badPrice = priced.find(
+      ({ price }) => price !== "" && !(Number(price) > 0)
+    );
+    if (badPrice) {
+      toast({
+        title: "Check that price",
+        description: `"${badPrice.price}" is not an amount. Leave it blank to charge the product's own price.`,
+        tone: "error",
+      });
       return;
     }
 
     setSaving(true);
     try {
-      const payload: VariantInput[] = rows.map((row) => ({
-        ...(row.id ? { id: row.id } : {}),
-        label: row.label.trim(),
-        isActive: row.isActive,
+      const colourPayload: ColourInput[] = colours.map((colour) => ({
+        ...(colour.id ? { id: colour.id } : {}),
+        name: colour.name.trim(),
+        hex: colour.hex,
+        images: colour.images,
+        isActive: colour.isActive,
       }));
-      const { product: updated } = await updateVariants(token, product.id, payload);
-      setRows(
-        (updated.variants ?? []).map((v) => ({
-          id: v.id,
-          label: v.label,
-          isActive: v.isActive,
-          stock: v.stock,
-          inactive: !v.isActive,
-        }))
-      );
-      toast({ title: "Sizes saved", description: `${product.name} now has ${rows.length} size${rows.length === 1 ? "" : "s"}.`, tone: "success" });
+
+      const variantPayload: VariantInput[] = priced.map(({ cell, price }) => ({
+        ...(cell.id ? { id: cell.id } : {}),
+        colourName: cell.colourName,
+        label: cell.label,
+        // Null rather than omitted, so clearing the box clears the override
+        // instead of leaving yesterday's on the row.
+        price: price === "" ? null : Number(price),
+        isActive: cell.isActive,
+      }));
+
+      const { product: updated } = await updateVariants(token, product.id, {
+        colours: colourPayload,
+        variants: variantPayload,
+      });
+
+      const next = readProduct(updated);
+      setColours(next.colours);
+      setSizes(next.sizes);
+      setCells(next.cells);
+
+      toast({
+        title: "Options saved",
+        description: `${product.name} now sells in ${variantPayload.length} option${
+          variantPayload.length === 1 ? "" : "s"
+        }.`,
+        tone: "success",
+      });
     } catch (err) {
       toast({
-        title: "Could not save sizes",
+        title: "Could not save options",
         description: err instanceof Error ? err.message : "Please try again.",
         tone: "error",
       });
@@ -110,74 +263,188 @@ export function VariantManager({ product }: { product: Product }) {
 
   return (
     <FormCard
-      title="Sizes"
-      description="The whole set is saved at once. A size with orders or stock history is switched off, not deleted."
+      title="Colours & sizes"
+      description="Pick the colours and the sizes; every combination of the two becomes something to buy. The whole set is saved at once, and anything with orders behind it is switched off rather than deleted."
     >
-      {rows.length > 0 ? (
-        <ul className="space-y-2.5">
-          {rows.map((row, index) => (
-            <li key={row.id ?? `new-${index}`} className="flex items-center gap-3">
-              <input
-                value={row.label}
-                onChange={(e) => updateLabel(index, e.target.value)}
-                placeholder="S, M, L, XL..."
-                className="min-w-0 flex-1 rounded-xl border border-line-strong bg-white px-3 py-2 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
-              />
-              {row.stock != null && (
-                <span className="shrink-0 text-xs font-semibold text-muted">
-                  {row.stock} in stock
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => toggleActive(index)}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
-                  row.isActive
-                    ? "bg-mint-100 text-mint-600 hover:bg-mint-200"
-                    : "bg-surface text-faint hover:bg-lavender-50"
-                )}
-              >
-                {row.isActive ? "Active" : "Off"}
-              </button>
-              <button
-                type="button"
-                onClick={() => removeRow(index)}
-                aria-label={`Remove size ${row.label}`}
-                className="shrink-0 grid h-8 w-8 place-items-center rounded-full text-faint transition-colors hover:bg-rose-50 hover:text-rose-500"
-              >
-                <Trash2 className="h-3.5 w-3.5" strokeWidth={2.3} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted">This product has no sizes. Add one below if it comes in different sizes.</p>
-      )}
+      <div className="space-y-6">
+        <section>
+          <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Colours</h3>
 
-      <div className="mt-4 flex items-center gap-2">
-        <input
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addRow();
-            }
-          }}
-          placeholder="New size label..."
-          className="min-w-0 flex-1 rounded-xl border border-line-strong bg-white px-3 py-2 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
-        />
-        <Button type="button" variant="secondary" size="sm" onClick={addRow} disabled={!newLabel.trim()}>
-          <Plus className="h-4 w-4" strokeWidth={2.3} />
-          Add
-        </Button>
-      </div>
+          {colours.length > 0 ? (
+            <ul className="mt-3 space-y-4">
+              {colours.map((colour, index) => (
+                <li key={colour.id ?? `new-colour-${index}`} className="rounded-3xl bg-surface-soft p-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      // A colour with no hex still needs something in the picker,
+                      // and grey is the least likely to be mistaken for a choice.
+                      value={colour.hex ?? "#cccccc"}
+                      onChange={(e) => updateColour(index, { hex: e.target.value })}
+                      aria-label={`Swatch for ${colour.name}`}
+                      className="h-9 w-9 shrink-0 cursor-pointer rounded-full border border-line-strong bg-white p-0.5"
+                    />
+                    <input
+                      value={colour.name}
+                      onChange={(e) => updateColour(index, { name: e.target.value })}
+                      placeholder="Midnight blue"
+                      className="min-w-0 flex-1 rounded-xl border border-line-strong bg-white px-3 py-2 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateColour(index, { isActive: !colour.isActive })}
+                      className={cn(
+                        "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+                        colour.isActive
+                          ? "bg-mint-100 text-mint-600 hover:bg-mint-200"
+                          : "bg-surface text-faint hover:bg-lavender-50"
+                      )}
+                    >
+                      {colour.isActive ? "Active" : "Off"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeColour(index)}
+                      aria-label={`Remove colour ${colour.name}`}
+                      className="shrink-0 grid h-8 w-8 place-items-center rounded-full text-faint transition-colors hover:bg-rose-50 hover:text-rose-500"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={2.3} />
+                    </button>
+                  </div>
 
-      <div className="mt-4 flex items-center justify-end gap-3 border-t border-line pt-4">
-        <Button type="button" onClick={handleSave} loading={saving} size="sm">
-          {saving ? "Saving..." : "Save sizes"}
-        </Button>
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-xs font-semibold text-lavender-600">
+                      Photos for this colour ({colour.images.length})
+                    </summary>
+                    <div className="mt-3">
+                      <ImageUploader
+                        value={colour.images}
+                        onChange={(images) => updateColour(index, { images })}
+                      />
+                      <p className="mt-2 text-xs text-muted">
+                        Leave empty to show the product&rsquo;s own photos for this colour.
+                      </p>
+                    </div>
+                  </details>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted">
+              This product has no colours. Add one if it comes in more than one.
+            </p>
+          )}
+
+          <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={addColour}>
+            <Plus className="h-4 w-4" strokeWidth={2.3} />
+            Add colour
+          </Button>
+        </section>
+
+        <section className="border-t border-line pt-5">
+          <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Sizes</h3>
+
+          {sizes.length > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {sizes.map((size, index) => (
+                <li
+                  key={size}
+                  className="flex items-center gap-1.5 rounded-full bg-lavender-50 py-1 pl-3.5 pr-1.5 text-sm font-bold text-lavender-700"
+                >
+                  {size}
+                  <button
+                    type="button"
+                    onClick={() => removeSize(index)}
+                    aria-label={`Remove size ${size}`}
+                    className="grid h-6 w-6 place-items-center rounded-full text-lavender-500 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                  >
+                    <Trash2 className="h-3 w-3" strokeWidth={2.4} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted">
+              This product has no sizes. Add one if it comes in different sizes.
+            </p>
+          )}
+
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              value={newSize}
+              onChange={(e) => setNewSize(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addSize();
+                }
+              }}
+              placeholder="S, M, L, XL..."
+              className="min-w-0 flex-1 rounded-xl border border-line-strong bg-white px-3 py-2 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
+            />
+            <Button type="button" variant="secondary" size="sm" onClick={addSize} disabled={!newSize.trim()}>
+              <Plus className="h-4 w-4" strokeWidth={2.3} />
+              Add
+            </Button>
+          </div>
+        </section>
+
+        {cells.length > 0 && (
+          <section className="border-t border-line pt-5">
+            <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-muted">
+              What can be bought ({cells.length})
+            </h3>
+            <p className="mt-1 text-xs text-muted">
+              Switch off a combination this product does not come in. Leave a price blank to charge the
+              product&rsquo;s own {product.price}.
+            </p>
+
+            <ul className="mt-3 space-y-2">
+              {cells.map((cell, index) => (
+                <li
+                  key={cell.id ?? `new-cell-${cellKey(cell.colourName, cell.label)}`}
+                  className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface-soft px-3.5 py-2.5"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+                    {[cell.colourName, cell.label].filter(Boolean).join(" · ")}
+                  </span>
+
+                  {cell.stock != null && (
+                    <span className="shrink-0 text-xs font-semibold text-muted">{cell.stock} in stock</span>
+                  )}
+
+                  <input
+                    value={cell.price}
+                    onChange={(e) => updateCell(index, { price: e.target.value })}
+                    inputMode="decimal"
+                    placeholder={String(product.price)}
+                    aria-label={`Price for ${[cell.colourName, cell.label].filter(Boolean).join(" ")}`}
+                    className="w-24 shrink-0 rounded-xl border border-line-strong bg-white px-3 py-1.5 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => updateCell(index, { isActive: !cell.isActive })}
+                    className={cn(
+                      "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+                      cell.isActive
+                        ? "bg-mint-100 text-mint-600 hover:bg-mint-200"
+                        : "bg-surface text-faint hover:bg-lavender-50"
+                    )}
+                  >
+                    {cell.isActive ? "Active" : "Off"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <div className="flex items-center justify-end gap-3 border-t border-line pt-4">
+          <Button type="button" onClick={handleSave} loading={saving} size="sm">
+            {saving ? "Saving..." : "Save options"}
+          </Button>
+        </div>
       </div>
     </FormCard>
   );
