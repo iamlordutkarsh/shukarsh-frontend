@@ -460,8 +460,19 @@ export default function OrderDetailPage() {
               Payment
             </h2>
             <p className="mt-2.5 text-sm font-semibold text-ink">
-              {order.paymentStatus === "PAID" ? "Paid via Razorpay" : `Payment ${order.paymentStatus.toLowerCase()}`}
+              {order.paymentStatus === "PAID"
+                ? order.paymentMethod === "COD"
+                  ? "Paid in cash on delivery"
+                  : "Paid via Razorpay"
+                : order.paymentMethod === "COD"
+                  ? `${formatPrice(order.totalAmount)} to pay when it arrives`
+                  : `Payment ${order.paymentStatus.toLowerCase()}`}
             </p>
+            {order.paymentMethod === "COD" && order.codFee > 0 && (
+              <p className="mt-1 text-xs text-muted">
+                Includes {formatPrice(order.codFee)} for cash collection.
+              </p>
+            )}
             <p className="mt-1 text-xs text-muted">{formatPlacedAt(order.createdAt)}</p>
             {order.razorpayPaymentId && (
               <p className="mt-1.5 break-all font-mono text-[0.6875rem] text-faint">{order.razorpayPaymentId}</p>

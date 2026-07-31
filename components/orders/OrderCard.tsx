@@ -124,7 +124,8 @@ export function OrderCard({
               one label that actually differs. */}
           {unpaid && (
             <span className="text-[0.625rem] font-bold uppercase tracking-[0.12em] text-peach-400">
-              {order.paymentStatus.toLowerCase()}
+              {/* On a cash order this is the arrangement, not a problem. */}
+              {order.paymentMethod === "COD" ? "cash on delivery" : order.paymentStatus.toLowerCase()}
             </span>
           )}
         </span>
