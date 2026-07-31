@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ChevronRight, PackageCheck, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { Suspense } from "react";
 import { getProduct, getProducts, getReviews } from "../../../lib/api";
-import { discountPercent, formatPrice } from "../../../lib/utils";
+import { discountPercent } from "../../../lib/utils";
 import { isLowStock } from "../../../lib/inventory";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
@@ -12,7 +12,10 @@ import { AddToCartButton } from "../../../components/product/AddToCartButton";
 import { ShareButton } from "../../../components/product/ShareButton";
 import { DeliveryCheck } from "../../../components/product/DeliveryCheck";
 import { ProductCard } from "../../../components/product/ProductCard";
-import { ProductGallery } from "../../../components/product/ProductGallery";
+import { ColourGallery } from "../../../components/product/ColourGallery";
+import { ProductDetails } from "../../../components/product/ProductDetails";
+import { ProductPrice } from "../../../components/product/ProductPrice";
+import { VariantChoiceProvider } from "../../../components/product/VariantChoice";
 import { ReviewForm } from "../../../components/product/ReviewForm";
 import { ReviewList } from "../../../components/product/ReviewList";
 import { RatingLine } from "../../../components/product/Stars";
@@ -123,6 +126,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const specs = [
     { label: "Category", value: product.category.name },
+    // The shop's own rows first among the derived ones, because "Material:
+    // stainless steel" is what somebody came to find and the item code is not.
+    ...product.specs,
     // Short and stable, like an order number. Slicing the slug produced codes
     // cut off mid-word, which reads as a bug rather than an identifier.
     { label: "Item code", value: product.id.slice(0, 8).toUpperCase() },
@@ -161,121 +167,124 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <span className="truncate font-medium text-ink">{product.name}</span>
         </nav>
 
-        <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:gap-14">
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            <ProductGallery
-              images={product.images}
-              name={product.name}
-              seed={product.slug}
-              badge={
-                <>
-                  {discount !== null && (
-                    <span className="rounded-full bg-gradient-to-r from-blush-400 to-peach-300 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-soft">
-                      {discount}% off
-                    </span>
-                  )}
-                  {soldOut && (
-                    <span className="rounded-full bg-ink-900/85 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white">
-                      Sold out
-                    </span>
-                  )}
-                </>
-              }
-            />
-          </div>
-
-          <div className="space-y-7">
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Pill tone="lavender">{product.category.name}</Pill>
-                {!soldOut && runningLow && <Pill tone="peach">Only {product.stock} left</Pill>}
-                {!soldOut && !runningLow && <Pill tone="mint">In stock</Pill>}
-              </div>
-
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <h1 className="text-hero text-balance">{product.name}</h1>
-                <ShareButton name={product.name} />
-              </div>
-
-              {/* Absent rating means this response did not count them, which is
-                  not the same as nobody having reviewed, so nothing is drawn
-                  either way until there is a real number to draw. */}
-              {product.rating && product.rating.count > 0 && product.rating.average != null && (
-                <a href="#reviews" className="inline-flex w-fit rounded-full transition-opacity hover:opacity-70">
-                  <RatingLine average={product.rating.average} count={product.rating.count} />
-                </a>
-              )}
-
-              <div className="flex flex-wrap items-baseline gap-3">
-                <span className="text-3xl font-bold tracking-tight text-ink">{formatPrice(product.price)}</span>
-                {comparePrice && comparePrice > product.price && (
-                  <span className="text-base text-faint line-through">{formatPrice(comparePrice)}</span>
-                )}
-                {discount !== null && (
-                  <span className="text-sm font-semibold text-blush-500">
-                    You save {formatPrice(Number(comparePrice) - product.price)}
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs text-faint">Inclusive of all taxes</p>
-
-              <p className="text-pretty text-[0.9375rem] leading-relaxed text-muted">
-                {product.description || "A little treat, picked for the way it feels in the hand."}
-              </p>
+        {/* Both columns sit inside the choice, because picking a colour swaps
+            the gallery on the left and the price on the right. Everything
+            outside it stays server-rendered. */}
+        <VariantChoiceProvider product={product}>
+          <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:gap-14">
+            <div className="lg:sticky lg:top-28 lg:self-start">
+              <ColourGallery
+                name={product.name}
+                seed={product.slug}
+                badge={
+                  <>
+                    {discount !== null && (
+                      <span className="rounded-full bg-gradient-to-r from-blush-400 to-peach-300 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-soft">
+                        {discount}% off
+                      </span>
+                    )}
+                    {soldOut && (
+                      <span className="rounded-full bg-ink-900/85 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white">
+                        Sold out
+                      </span>
+                    )}
+                  </>
+                }
+              />
             </div>
 
-            <AddToCartButton product={product} />
+            <div className="space-y-7">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Pill tone="lavender">{product.category.name}</Pill>
+                  {!soldOut && runningLow && <Pill tone="peach">Only {product.stock} left</Pill>}
+                  {!soldOut && !runningLow && <Pill tone="mint">In stock</Pill>}
+                </div>
 
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {[
-                { icon: Truck, label: "Tracked delivery across India" },
-                { icon: ShieldCheck, label: "Secure Razorpay checkout" },
-                { icon: PackageCheck, label: "Packed with care" },
-                { icon: RotateCcw, label: "Easy 7-day support" },
-              ].map(({ icon: Icon, label }) => (
-                <li
-                  key={label}
-                  className="flex items-center gap-2.5 rounded-3xl bg-surface/70 px-4 py-3 text-[0.8125rem] font-medium text-ink-700 hairline"
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-lavender-500" strokeWidth={2.3} />
-                  {label}
-                </li>
-              ))}
-            </ul>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h1 className="text-hero text-balance">{product.name}</h1>
+                  <ShareButton name={product.name} />
+                </div>
 
-            <DeliveryCheck productId={product.id} />
+                {/* Absent rating means this response did not count them, which is
+                    not the same as nobody having reviewed, so nothing is drawn
+                    either way until there is a real number to draw. */}
+                {product.rating && product.rating.count > 0 && product.rating.average != null && (
+                  <a href="#reviews" className="inline-flex w-fit rounded-full transition-opacity hover:opacity-70">
+                    <RatingLine average={product.rating.average} count={product.rating.count} />
+                  </a>
+                )}
 
-            <Accordion
-              items={[
-                {
-                  title: "Product details",
-                  content: (
-                    <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
-                      {specs.map(({ label, value }) => (
-                        <div key={label} className="flex justify-between gap-3 border-b border-line pb-2">
-                          <dt className="text-muted">{label}</dt>
-                          <dd className="text-right font-semibold text-ink">{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  ),
-                },
-                {
-                  title: "Delivery",
-                  content:
-                    "Free on every order, dispatched within 1-2 working days from India. Enter your PIN code above for a delivery estimate, then track the parcel from your account once it leaves us.",
-                },
-                {
-                  title: "Care & returns",
-                  content:
-                    "Hand wash or wipe clean where relevant. If it arrives damaged or we sent the wrong thing, open a return from your order within 7 days of delivery and we will collect it and put it right.",
-                },
-              ]}
-            />
+                <ProductPrice product={product} />
+
+                <p className="text-pretty text-[0.9375rem] leading-relaxed text-muted">
+                  {product.description || "A little treat, picked for the way it feels in the hand."}
+                </p>
+              </div>
+
+              <AddToCartButton product={product} />
+
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {[
+                  { icon: Truck, label: "Tracked delivery across India" },
+                  { icon: ShieldCheck, label: "Secure Razorpay checkout" },
+                  { icon: PackageCheck, label: "Packed with care" },
+                  { icon: RotateCcw, label: "Easy 7-day support" },
+                ].map(({ icon: Icon, label }) => (
+                  <li
+                    key={label}
+                    className="flex items-center gap-2.5 rounded-3xl bg-surface/70 px-4 py-3 text-[0.8125rem] font-medium text-ink-700 hairline"
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-lavender-500" strokeWidth={2.3} />
+                    {label}
+                  </li>
+                ))}
+              </ul>
+
+              <DeliveryCheck productId={product.id} />
+
+              <Accordion
+                items={[
+                  {
+                    title: "Product details",
+                    content: (
+                      <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                        {specs.map(({ label, value }) => (
+                          <div key={label} className="flex justify-between gap-3 border-b border-line pb-2">
+                            <dt className="text-muted">{label}</dt>
+                            <dd className="text-right font-semibold text-ink">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ),
+                  },
+                  {
+                    title: "Delivery",
+                    content:
+                      "Free on every order, dispatched within 1-2 working days from India. Enter your PIN code above for a delivery estimate, then track the parcel from your account once it leaves us.",
+                  },
+                  {
+                    title: "Care & returns",
+                    content:
+                      "Hand wash or wipe clean where relevant. If it arrives damaged or we sent the wrong thing, open a return from your order within 7 days of delivery and we will collect it and put it right.",
+                  },
+                ]}
+              />
+            </div>
           </div>
-        </div>
+        </VariantChoiceProvider>
       </div>
+
+      {/* Below the buy button rather than inside the accordion beside it: this is
+          the copy somebody reads once they are interested, and burying it behind
+          a summary is how it never gets read at all. */}
+      {product.details.length > 0 && (
+        <section className="section-shell pt-20">
+          <Reveal>
+            <ProductDetails blocks={product.details} />
+          </Reveal>
+        </section>
+      )}
 
       <Reviews productId={product.id} productName={product.name} />
 
