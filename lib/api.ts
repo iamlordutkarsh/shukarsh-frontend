@@ -547,6 +547,13 @@ export async function getMyReview(
   });
 }
 
+/** Which of these products the shopper has already reviewed. One call, not one per item. */
+export async function getMyReviews(token: string, productIds: string[]): Promise<{ reviews: Review[] }> {
+  return withToken(`/reviews/mine/list?productIds=${encodeURIComponent(productIds.join(","))}`, token, {
+    cache: "no-store",
+  });
+}
+
 export async function saveReview(
   token: string,
   payload: { productId: string; rating: number; comment?: string }

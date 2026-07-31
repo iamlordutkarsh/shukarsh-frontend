@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { EyeOff, Star } from "lucide-react";
+import { EyeOff } from "lucide-react";
 import { deleteReview, getMyReview, saveReview } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { Review } from "../../lib/types";
-import { cn } from "../../lib/utils";
 import { Button } from "../ui/Button";
+import { StarPicker } from "./StarPicker";
 import { Stars } from "./Stars";
 
 const MAX_COMMENT = 1200;
@@ -165,27 +165,7 @@ export function ReviewForm({ productId, productName }: { productId: string; prod
           {state.review ? "Change your review" : `How was ${productName}?`}
         </legend>
 
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="Rating out of five">
-          {[1, 2, 3, 4, 5].map((value) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={rating === value}
-              aria-label={`${value} star${value === 1 ? "" : "s"}`}
-              onClick={() => setRating(value)}
-              className="rounded-full p-1 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lavender-400"
-            >
-              <Star
-                className={cn(
-                  "h-7 w-7",
-                  value <= rating ? "fill-peach-400 text-peach-400" : "text-lavender-200"
-                )}
-                strokeWidth={2}
-              />
-            </button>
-          ))}
-        </div>
+        <StarPicker value={rating} onChange={setRating} />
 
         <div>
           <label htmlFor="review-comment" className="text-xs font-semibold text-muted">

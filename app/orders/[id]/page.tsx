@@ -6,9 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, CreditCard, ExternalLink, MapPin, Package, Star, Truck, XCircle } from "lucide-react";
-import { cancelOrder, getOrder, trackOrder } from "../../../lib/api";
+import { cancelOrder, getMyReviews, getOrder, trackOrder } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
-import type { Order, Tracking } from "../../../lib/types";
+import type { Order, Review, Tracking } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
 import { fadeUp, staggerParent } from "../../../lib/motion";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
@@ -19,6 +19,8 @@ import { OopsArt } from "../../../components/ui/KawaiiArt";
 import { PastelTile } from "../../../components/ui/PastelTile";
 import { Skeleton, SkeletonText } from "../../../components/ui/Skeleton";
 import { ReturnPanel } from "../../../components/orders/ReturnPanel";
+import { ReviewDialog, type ReviewTarget } from "../../../components/orders/ReviewDialog";
+import { Stars } from "../../../components/product/Stars";
 import { WhatsAppIcon } from "../../../components/support/WhatsAppIcon";
 import { orderSupportLink } from "../../../lib/support";
 import { formatEtd, formatEventDate, formatPlacedAt, paymentMeta, statusMeta, steps } from "../../../components/orders/status";
@@ -39,6 +41,11 @@ export default function OrderDetailPage() {
   // Bumped after a return is opened or withdrawn, to pull the order again: the
   // eligibility and the requests on it are both decided by the server.
   const [refresh, setRefresh] = useState(0);
+
+  // Keyed by product, so an item that has been reviewed shows the rating instead
+  // of asking for one again.
+  const [myReviews, setMyReviews] = useState<Record<string, Review>>({});
+  const [reviewing, setReviewing] = useState<string | null>(null);
 
   const handleCancel = async () => {
     if (!token || typeof id !== "string" || !order) return;
@@ -88,6 +95,29 @@ export default function OrderDetailPage() {
       active = false;
     };
   }, [token, id, refresh]);
+
+  // Only for a delivered order, since nothing else can be reviewed, and in one
+  // call for every item rather than one per line.
+  useEffect(() => {
+    if (!token || order?.status !== "DELIVERED") return;
+    const ids = [...new Set(order.items.map((item) => item.productId))];
+    if (ids.length === 0) return;
+
+    let active = true;
+
+    getMyReviews(token, ids)
+      .then((data) => {
+        if (!active) return;
+        setMyReviews(Object.fromEntries(data.reviews.map((review) => [review.productId, review])));
+      })
+      // Silent on purpose: not knowing which are already reviewed costs a shopper
+      // one confusing button, and is not worth a red toast on an order page.
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [token, order?.status, order?.items]);
 
   // Once a parcel has an AWB the scans are the most useful thing on this page,
   // so they load with it rather than waiting behind a button.
@@ -152,10 +182,37 @@ export default function OrderDetailPage() {
   // Only while the shop has not started on it. After approval someone is
   // packing, so calling it off has to go through them.
   const canCancel = order.status === "PENDING";
-  // The same condition the API enforces on a review. Offering the link on a
-  // parcel that is still moving would send someone to a form that refuses them.
+  // The same condition the API enforces on a review. Offering it on a parcel
+  // that is still moving would open a form that refuses them.
   const canReview = order.status === "DELIVERED";
   const chat = orderSupportLink(order.id);
+
+  // One entry per product, not per line: the same thing bought twice is still
+  // one opinion, and the API stores one row per person per product.
+  const reviewTargets: ReviewTarget[] = canReview
+    ? [...new Map(
+        order.items.map((item) => [
+          item.productId,
+          {
+            productId: item.productId,
+            name: item.product?.name ?? "This item",
+            image: item.product?.images?.[0] ?? null,
+          },
+        ])
+      ).values()]
+    : [];
+
+  const openTarget = reviewTargets.find((target) => target.productId === reviewing) ?? null;
+
+  /** The next item in this order nobody has said anything about yet. */
+  const nextUnreviewed = (after: string) => {
+    const from = reviewTargets.findIndex((target) => target.productId === after);
+    return (
+      reviewTargets.slice(from + 1).find((target) => !myReviews[target.productId]) ??
+      reviewTargets.find((target) => target.productId !== after && !myReviews[target.productId]) ??
+      null
+    );
+  };
 
   return (
     <div className="relative pb-20 pt-10">
@@ -343,15 +400,26 @@ export default function OrderDetailPage() {
                     Qty {item.quantity} · {formatPrice(item.price)} each
                   </span>
 
-                  {canReview && item.product?.slug && (
-                    <Link
-                      href={`/products/${item.product.slug}#write-review`}
-                      className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-lavender-600 transition-colors hover:text-lavender-700"
-                    >
-                      <Star className="h-3.5 w-3.5" strokeWidth={2.4} />
-                      Write a review
-                    </Link>
-                  )}
+                  {canReview &&
+                    (myReviews[item.productId] ? (
+                      <button
+                        type="button"
+                        onClick={() => setReviewing(item.productId)}
+                        className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted transition-colors hover:text-ink"
+                      >
+                        <Stars value={myReviews[item.productId]!.rating} />
+                        <span className="font-semibold">Edit your review</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setReviewing(item.productId)}
+                        className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-lavender-600 transition-colors hover:text-lavender-700"
+                      >
+                        <Star className="h-3.5 w-3.5" strokeWidth={2.4} />
+                        Write a review
+                      </button>
+                    ))}
                 </span>
                 <span className="shrink-0 text-sm font-bold text-ink">
                   {formatPrice(item.price * item.quantity)}
@@ -463,6 +531,26 @@ export default function OrderDetailPage() {
           </motion.div>
         )}
       </motion.div>
+
+      {/* Keyed by product so moving to the next item remounts the fields with
+          that item's own review, rather than clearing them one by one. */}
+      {openTarget && token && (
+        <ReviewDialog
+          key={openTarget.productId}
+          open
+          target={openTarget}
+          existing={myReviews[openTarget.productId] ?? null}
+          token={token}
+          remaining={
+            reviewTargets.filter(
+              (target) => target.productId !== openTarget.productId && !myReviews[target.productId]
+            ).length
+          }
+          onClose={() => setReviewing(null)}
+          onSaved={(review) => setMyReviews((current) => ({ ...current, [review.productId]: review }))}
+          onNext={() => setReviewing(nextUnreviewed(openTarget.productId)?.productId ?? null)}
+        />
+      )}
     </div>
   );
 }
