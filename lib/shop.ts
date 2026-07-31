@@ -36,8 +36,8 @@ export interface ShopDetails {
 
 export const SHOP: ShopDetails = {
   legalName: "Shukarsh Enterprises",
-  entityType: "",
-  address: "1104 Janakpuri\nBareilly, Uttar Pradesh 234001",
+  entityType: "Sole proprietorship",
+  address: "1104 Janakpuri\nBareilly, Uttar Pradesh 243001",
   // Taken from the address above rather than chosen: the governing-law clause
   // naming a city the shop does not trade from is the kind of clause a court
   // reads against whoever drafted it.
@@ -52,7 +52,7 @@ export const SHOP: ShopDetails = {
   // pages exist to prevent.
   dispatchWindow: "1 to 2 working days",
   grievanceName: "",
-  grievanceDesignation: "",
+  grievanceDesignation: "Proprietor",
   // A one-person shop answers grievances on the same line it answers everything
   // else. Split these out if that ever stops being true.
   grievanceEmail: "hello@shukarsh.com",
