@@ -1,21 +1,29 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_PACKAGING } from "../lib/packaging";
-import { Category, DetailBlock, Product, ProductSpec } from "../lib/types";
+import { AttributeDefinition, Category, DetailBlock, Product, ProductSpec } from "../lib/types";
+import { getCategoryAttributes } from "../lib/api";
 import { cn, discountPercent, formatPrice, round2 } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
 import { ImageUploader } from "./admin/ImageUploader";
+import { CategoryPicker } from "./admin/CategoryPicker";
+import { AttributeFields, answersFromProduct, type AttributeAnswers } from "./admin/AttributeFields";
 import { SpecEditor } from "./admin/SpecEditor";
 import { DetailsEditor } from "./admin/DetailsEditor";
 
 interface ProductFormProps {
   categories: Category[];
   product?: Product;
-  onSubmit: (data: FormData) => Promise<void>;
+  /**
+   * Handed the definitions as well as the answers, because turning one into the
+   * API's shape needs to know each question's kind, and only this component ever
+   * fetched them.
+   */
+  onSubmit: (data: FormData, definitions: AttributeDefinition[]) => Promise<void>;
   submitLabel: string;
 }
 
@@ -39,6 +47,12 @@ export interface FormData {
   costPrice: string;
   specs: ProductSpec[];
   details: DetailBlock[];
+  countryOfOrigin: string;
+  manufacturerName: string;
+  manufacturerAddr: string;
+  manufacturerPin: string;
+  /** Keyed by the definition's key, so it survives the category changing. */
+  attributes: AttributeAnswers;
 }
 
 /** Straight from the shared defaults, so the form and the list cannot disagree. */
@@ -77,7 +91,53 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     costPrice: product?.costPrice != null ? String(product.costPrice) : "",
     specs: product?.specs ?? [],
     details: product?.details ?? [],
+    countryOfOrigin: product?.countryOfOrigin || "",
+    manufacturerName: product?.manufacturerName || "",
+    manufacturerAddr: product?.manufacturerAddr || "",
+    manufacturerPin: product?.manufacturerPin || "",
+    attributes: answersFromProduct(product?.attributes),
   });
+
+  /**
+   * What the chosen category asks for.
+   *
+   * Refetched whenever the category changes, because that is the whole point: the
+   * form below is generated from this. The answers themselves are keyed by the
+   * question's key and deliberately not cleared, so a product moved between two
+   * categories that both ask for a fabric keeps the fabric it already had.
+   */
+  const [fetched, setFetched] = useState<{
+    categoryId: string;
+    attributes: AttributeDefinition[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!form.categoryId) return;
+
+    const categoryId = form.categoryId;
+    let live = true;
+
+    getCategoryAttributes(categoryId)
+      .then((data) => {
+        if (live) setFetched({ categoryId, attributes: data.attributes });
+      })
+      // A category whose questions will not load must not block the save. The
+      // API checks them again anyway, and it is the one that decides.
+      .catch(() => {
+        if (live) setFetched({ categoryId, attributes: [] });
+      });
+
+    return () => {
+      live = false;
+    };
+  }, [form.categoryId]);
+
+  // Which category the answer belongs to is carried with it, so switching
+  // categories cannot briefly draw the old one's questions against the new one's
+  // name. That also means neither of these needs resetting in the effect.
+  const forThisCategory = fetched?.categoryId === form.categoryId;
+  const definitions = forThisCategory ? fetched!.attributes : [];
+  const loadingAttributes = Boolean(form.categoryId) && !forThisCategory;
 
   const priceNumber = Number(form.price);
   const pricePreview = form.price.trim() && Number.isFinite(priceNumber) ? formatPrice(priceNumber) : null;
@@ -135,7 +195,7 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     setLoading(true);
 
     try {
-      await onSubmit(form);
+      await onSubmit(form, definitions);
       toast({
         title: submitLabel.startsWith("Create") ? "Product created" : "Product updated",
         description: `${form.name} is live in the catalogue.`,
@@ -190,6 +250,80 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
         </FormField>
       </FormCard>
 
+      {/* Above the rest, because it decides what the rest of the form asks for.
+          A category chosen last is a form filled in twice. */}
+      <FormCard
+        title="Category"
+        description="Pick the most specific one that fits. It decides which details this product is asked for."
+      >
+        <CategoryPicker
+          categories={categories}
+          value={form.categoryId || null}
+          onChange={(categoryId) => setForm({ ...form, categoryId })}
+        />
+      </FormCard>
+
+      <FormCard
+        title="Product details"
+        description="What this category asks about every product filed under it."
+      >
+        <AttributeFields
+          definitions={definitions}
+          answers={form.attributes}
+          onChange={(attributes) => setForm({ ...form, attributes })}
+          loading={loadingAttributes}
+        />
+      </FormCard>
+
+      <FormCard
+        title="Compliance"
+        description="Required on the label of anything packaged and sold online in India."
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField label="Country of origin" htmlFor={`${uid}-origin`}>
+            <input
+              id={`${uid}-origin`}
+              value={form.countryOfOrigin}
+              onChange={(e) => setForm({ ...form, countryOfOrigin: e.target.value })}
+              placeholder="India"
+              className={inputClass}
+            />
+          </FormField>
+          <FormField label="Manufacturer / packer" htmlFor={`${uid}-maker`}>
+            <input
+              id={`${uid}-maker`}
+              value={form.manufacturerName}
+              onChange={(e) => setForm({ ...form, manufacturerName: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+          <FormField
+            label="Address"
+            htmlFor={`${uid}-maker-address`}
+            className="sm:col-span-2"
+            hint="An address a customer could actually write to."
+          >
+            <input
+              id={`${uid}-maker-address`}
+              value={form.manufacturerAddr}
+              onChange={(e) => setForm({ ...form, manufacturerAddr: e.target.value })}
+              className={inputClass}
+            />
+          </FormField>
+          <FormField label="Pincode" htmlFor={`${uid}-maker-pin`}>
+            <input
+              id={`${uid}-maker-pin`}
+              value={form.manufacturerPin}
+              onChange={(e) => setForm({ ...form, manufacturerPin: e.target.value })}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="243001"
+              className={inputClass}
+            />
+          </FormField>
+        </div>
+      </FormCard>
+
       <FormCard title="Inventory" description="Stock and shelf placement.">
         <div className="grid gap-5 sm:grid-cols-2">
           <FormField
@@ -226,22 +360,6 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
               onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })}
               className={inputClass}
             />
-          </FormField>
-          <FormField label="Category" htmlFor={`${uid}-category`}>
-            <select
-              id={`${uid}-category`}
-              required
-              value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-              className={inputClass}
-            >
-              <option value="">Select a category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
           </FormField>
         </div>
 

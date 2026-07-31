@@ -8,7 +8,8 @@ import { Skeleton } from "../../../../components/ui/Skeleton";
 import { useAuth } from "../../../../lib/auth";
 import { createProduct, getCategories } from "../../../../lib/api";
 import { cleanDetails, cleanSpecs } from "../../../../lib/product-content";
-import { Category } from "../../../../lib/types";
+import { answersToPayload } from "../../../../components/admin/AttributeFields";
+import { AttributeDefinition, Category } from "../../../../lib/types";
 
 export default function NewProductPage() {
   const { token } = useAuth();
@@ -21,7 +22,7 @@ export default function NewProductPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleSubmit = async (form: FormData) => {
+  const handleSubmit = async (form: FormData, definitions: AttributeDefinition[]) => {
     if (!token) throw new Error("Not authenticated");
 
     await createProduct(token, {
@@ -47,6 +48,11 @@ export default function NewProductPage() {
       // API refuses a blank label, and one empty row would fail the whole save.
       specs: cleanSpecs(form.specs),
       details: cleanDetails(form.details),
+      countryOfOrigin: form.countryOfOrigin.trim() || null,
+      manufacturerName: form.manufacturerName.trim() || null,
+      manufacturerAddr: form.manufacturerAddr.trim() || null,
+      manufacturerPin: form.manufacturerPin.trim() || null,
+      attributes: answersToPayload(definitions, form.attributes),
     });
   };
 
