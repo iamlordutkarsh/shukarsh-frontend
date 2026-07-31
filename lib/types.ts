@@ -6,13 +6,45 @@ export interface Category {
   image: string | null;
 }
 
+/** One buyable cell: a colour, a size, or the pairing of the two. */
 export interface ProductVariant {
   id: string;
+  /** The size. Empty on a product sold by colour alone. */
   label: string;
+  /** Null on a product sold in sizes only. */
+  colourId: string | null;
   position: number;
   stock: number;
   isActive: boolean;
+  /** Already resolved against the product's price, so it is always spendable. */
+  price: number;
+  /** Whether that price is this cell's own or inherited from the product. */
+  hasOwnPrice: boolean;
 }
+
+/** One colour a product comes in. The photos hang here rather than on each cell. */
+export interface ProductColour {
+  id: string;
+  name: string;
+  /** `#rrggbb`, or null for a colour with no sensible hex. */
+  hex: string | null;
+  /** This colour's own photos. Empty falls back to the product's. */
+  images: string[];
+  position: number;
+  isActive: boolean;
+}
+
+/** One row of the spec table under a product. */
+export interface ProductSpec {
+  label: string;
+  value: string;
+}
+
+/** One block of the long copy. `kind` says which shape it is. */
+export type DetailBlock =
+  | { kind: "text"; title: string; body: string }
+  | { kind: "highlights"; title: string; items: string[] }
+  | { kind: "faq"; title: string; items: { question: string; answer: string }[] };
 
 export interface Product {
   id: string;
@@ -38,10 +70,22 @@ export interface Product {
    */
   costPrice?: number | null;
   /**
-   * Empty for a product sold in one size only. When it has entries, `stock` is
-   * their sum and nothing can be bought without choosing one of them.
+   * Empty for a product sold as one thing. When it has entries, `stock` is their
+   * sum and nothing can be bought without choosing one of them.
    */
   variants: ProductVariant[];
+  /** Empty for a product that does not come in colours. */
+  colours: ProductColour[];
+  /**
+   * The cheapest and dearest a shopper can actually pay. Equal when no option
+   * overrides the price, which is what lets a card decide whether to say "from".
+   */
+  priceFrom: number;
+  priceTo: number;
+  /** The spec table. Empty when the shop gave none. */
+  specs: ProductSpec[];
+  /** The long copy, as blocks. Empty when the shop gave none. */
+  details: DetailBlock[];
   categoryId: string;
   category: Category;
   createdAt: string;
@@ -92,6 +136,8 @@ export interface OrderItem {
   productId: string;
   /** The size as it read when bought, null for a product without sizes. */
   variantLabel: string | null;
+  /** The colour as it read when bought, null for a product without colours. */
+  variantColour: string | null;
   quantity: number;
   price: number;
   gstRate: number;
