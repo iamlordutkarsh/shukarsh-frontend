@@ -3,9 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight, Star } from "lucide-react";
-import type { Order } from "../../lib/types";
+import type { Order, Review } from "../../lib/types";
 import { cn, formatPrice } from "../../lib/utils";
 import { PastelTile } from "../ui/PastelTile";
+import { reviewTargetsOf, unreviewed } from "./review-targets";
 import { formatPlacedAt, statusMeta, summaryLineOf } from "./status";
 
 /**
@@ -39,23 +40,18 @@ function OrderThumbs({ order, muted }: { order: Order; muted: boolean }) {
   );
 }
 
-/**
- * Where a review starts from this row.
- *
- * An order of one product goes straight to its form. Anything with more than one
- * goes to the order, which lists them with a link each, because the row cannot
- * know which of the four things somebody wants to talk about.
- */
-function reviewHref(order: Order): string {
-  const slugs = new Set(order.items.map((item) => item.product?.slug).filter(Boolean));
-  const only = slugs.size === 1 ? [...slugs][0] : null;
-  // The anchor matters. Landing at the top of an order and being left to find
-  // the review links reads as a button that did nothing.
-  return only ? `/products/${only}#write-review` : `/orders/${order.id}#write-review`;
-}
-
 /** One line per order, linking to the full detail page. */
-export function OrderCard({ order }: { order: Order }) {
+export function OrderCard({
+  order,
+  reviews,
+  onReview,
+}: {
+  order: Order;
+  /** The shopper's own reviews, keyed by product. Absent means not loaded. */
+  reviews?: Record<string, Review>;
+  /** Given, the row opens the popup itself instead of sending them to the order. */
+  onReview?: (order: Order) => void;
+}) {
   const meta = statusMeta[order.status] ?? statusMeta.PENDING;
   const StatusIcon = meta!.icon;
   const units = order.items.reduce((total, item) => total + item.quantity, 0);
@@ -64,6 +60,11 @@ export function OrderCard({ order }: { order: Order }) {
   // The same condition the API puts on a review, so the offer is never one the
   // form will refuse.
   const canReview = order.status === "DELIVERED";
+  // The label has to say what is left to do, or someone who has reviewed two of
+  // three items cannot tell this row apart from one they have not started.
+  const targets = canReview ? reviewTargetsOf(order) : [];
+  const products = targets.length;
+  const left = reviews ? unreviewed(targets, reviews).length : products;
 
   return (
     // Not one big anchor any more. A link inside a link is invalid, and the
@@ -91,14 +92,16 @@ export function OrderCard({ order }: { order: Order }) {
           {units} item{units === 1 ? "" : "s"}
         </span>
 
-        {canReview && (
-          <Link
-            href={reviewHref(order)}
+        {/* z-10 keeps this above the title link's overlay, which covers the row. */}
+        {canReview && onReview && (
+          <button
+            type="button"
+            onClick={() => onReview(order)}
             className="relative z-10 mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-lavender-600 transition-colors hover:text-lavender-700"
           >
             <Star className="h-3.5 w-3.5" strokeWidth={2.4} />
-            Write a review
-          </Link>
+            {left === 0 ? "Edit your reviews" : left < products ? `Review the other ${left}` : "Write a review"}
+          </button>
         )}
       </span>
 

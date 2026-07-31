@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Heart, LayoutDashboard, LogOut, Mail, Package } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getOrders } from "../../lib/api";
+import { getMyReviews, getOrders } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import type { Order } from "../../lib/types";
+import type { Order, Review } from "../../lib/types";
 import { displayName, initialsOf } from "../../lib/utils";
 import { useWishlist } from "../../lib/wishlist";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
 import { ChangePassword } from "../../components/account/ChangePassword";
 import { OrderCard } from "../../components/orders/OrderCard";
+import { ReviewDialog } from "../../components/orders/ReviewDialog";
+import { nextUnreviewed, reviewTargetsOf, unreviewed } from "../../components/orders/review-targets";
 import { Button, ButtonLink } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { EmptyCartArt } from "../../components/ui/KawaiiArt";
@@ -23,6 +25,11 @@ export default function ProfilePage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+
+  // Reviews are keyed by product across every order, since a product bought
+  // twice is one review, and the popup is lifted here so only one exists.
+  const [myReviews, setMyReviews] = useState<Record<string, Review>>({});
+  const [reviewing, setReviewing] = useState<{ orderId: string; productId: string } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -48,6 +55,36 @@ export default function ProfilePage() {
     };
   }, [user, token]);
 
+  // Every product across the delivered orders in one call. The endpoint caps the
+  // list, which is the right shape of limit: a shopper with hundreds of orders
+  // gets the labels right on the recent ones rather than a failed request.
+  useEffect(() => {
+    if (!token) return;
+    const ids = [
+      ...new Set(
+        orders
+          .filter((order) => order.status === "DELIVERED")
+          .flatMap((order) => order.items.map((item) => item.productId))
+      ),
+    ].slice(0, 100);
+    if (ids.length === 0) return;
+
+    let active = true;
+
+    getMyReviews(token, ids)
+      .then((data) => {
+        if (!active) return;
+        setMyReviews(Object.fromEntries(data.reviews.map((review) => [review.productId, review])));
+      })
+      // Quiet on purpose. Not knowing which are reviewed costs a label, and is
+      // not worth an error on the account page.
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [token, orders]);
+
   if (loading || !user) {
     return (
       <div className="section-shell py-16">
@@ -64,6 +101,11 @@ export default function ProfilePage() {
   }
 
   const name = displayName(user.firstName, user.lastName);
+
+  // Save and next walks the order that was clicked, not the whole history.
+  const reviewingOrder = reviewing ? (orders.find((order) => order.id === reviewing.orderId) ?? null) : null;
+  const openTargets = reviewingOrder ? reviewTargetsOf(reviewingOrder) : [];
+  const openTarget = openTargets.find((target) => target.productId === reviewing?.productId) ?? null;
 
   return (
     <div className="relative pb-20 pt-10">
@@ -160,13 +202,45 @@ export default function ProfilePage() {
             ) : (
               <div className="space-y-4">
                 {orders.map((order) => (
-                  <OrderCard key={order.id} order={order} />
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    reviews={myReviews}
+                    onReview={(clicked) => {
+                      const targets = reviewTargetsOf(clicked);
+                      // Straight to whatever is still unsaid, so pressing it twice
+                      // does not reopen the one already written.
+                      const first = unreviewed(targets, myReviews)[0] ?? targets[0];
+                      if (first) setReviewing({ orderId: clicked.id, productId: first.productId });
+                    }}
+                  />
                 ))}
               </div>
             )}
           </section>
         </div>
       </div>
+
+      {openTarget && token && (
+        <ReviewDialog
+          key={openTarget.productId}
+          open
+          target={openTarget}
+          existing={myReviews[openTarget.productId] ?? null}
+          token={token}
+          remaining={
+            unreviewed(openTargets, myReviews).filter(
+              (target) => target.productId !== openTarget.productId
+            ).length
+          }
+          onClose={() => setReviewing(null)}
+          onSaved={(review) => setMyReviews((current) => ({ ...current, [review.productId]: review }))}
+          onNext={() => {
+            const next = nextUnreviewed(openTargets, myReviews, openTarget.productId);
+            setReviewing(next && reviewing ? { orderId: reviewing.orderId, productId: next.productId } : null);
+          }}
+        />
+      )}
     </div>
   );
 }
