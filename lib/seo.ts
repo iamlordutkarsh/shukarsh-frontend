@@ -104,16 +104,35 @@ export function productJsonLd(product: Product): Record<string, unknown> {
           },
         }
       : {}),
-    offers: {
-      "@type": "Offer",
-      url,
-      priceCurrency: "INR",
-      price: amount(product.price),
-      itemCondition: "https://schema.org/NewCondition",
-      availability:
-        product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      seller: { "@type": "Organization", name: SITE_NAME },
-    },
+    /**
+     * A product whose options price differently is an AggregateOffer, not one
+     * Offer at the cheapest of them. Google checks the markup against the page,
+     * and a single price where the page shows a range is a mismatch that costs
+     * the rich result.
+     */
+    offers:
+      (product.priceTo ?? product.price) > (product.priceFrom ?? product.price)
+        ? {
+            "@type": "AggregateOffer",
+            url,
+            priceCurrency: "INR",
+            lowPrice: amount(product.priceFrom),
+            highPrice: amount(product.priceTo),
+            offerCount: (product.variants ?? []).filter((variant) => variant.isActive).length,
+            availability:
+              product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            seller: { "@type": "Organization", name: SITE_NAME },
+          }
+        : {
+            "@type": "Offer",
+            url,
+            priceCurrency: "INR",
+            price: amount(product.priceFrom ?? product.price),
+            itemCondition: "https://schema.org/NewCondition",
+            availability:
+              product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            seller: { "@type": "Organization", name: SITE_NAME },
+          },
   };
 }
 
