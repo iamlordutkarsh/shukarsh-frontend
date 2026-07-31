@@ -3,12 +3,14 @@
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_PACKAGING } from "../lib/packaging";
-import { Category, Product } from "../lib/types";
+import { Category, DetailBlock, Product, ProductSpec } from "../lib/types";
 import { cn, discountPercent, formatPrice, round2 } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
 import { ImageUploader } from "./admin/ImageUploader";
+import { SpecEditor } from "./admin/SpecEditor";
+import { DetailsEditor } from "./admin/DetailsEditor";
 
 interface ProductFormProps {
   categories: Category[];
@@ -35,6 +37,8 @@ export interface FormData {
   hsn: string;
   gstRate: string;
   costPrice: string;
+  specs: ProductSpec[];
+  details: DetailBlock[];
 }
 
 /** Straight from the shared defaults, so the form and the list cannot disagree. */
@@ -71,6 +75,8 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     hsn: product?.hsn || "",
     gstRate: product?.gstRate != null ? String(product.gstRate) : "5",
     costPrice: product?.costPrice != null ? String(product.costPrice) : "",
+    specs: product?.specs ?? [],
+    details: product?.details ?? [],
   });
 
   const priceNumber = Number(form.price);
@@ -466,6 +472,20 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
             )}
           </div>
         )}
+      </FormCard>
+
+      <FormCard
+        title="Product details"
+        description="The spec table under the product. Dimensions, weight and category are listed for you; this is for what only you know."
+      >
+        <SpecEditor value={form.specs} onChange={(specs) => setForm({ ...form, specs })} />
+      </FormCard>
+
+      <FormCard
+        title="More about it"
+        description="The longer copy, in sections. Shown below the buy button, under its own headings."
+      >
+        <DetailsEditor value={form.details} onChange={(details) => setForm({ ...form, details })} />
       </FormCard>
 
       <FormCard title="Media" description="Upload photos or paste links. The first image becomes the cover.">

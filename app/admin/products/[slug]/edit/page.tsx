@@ -11,6 +11,7 @@ import { OopsArt } from "../../../../../components/ui/KawaiiArt";
 import { Skeleton } from "../../../../../components/ui/Skeleton";
 import { useAuth } from "../../../../../lib/auth";
 import { getCategories, getProduct, updateProduct } from "../../../../../lib/api";
+import { cleanDetails, cleanSpecs } from "../../../../../lib/product-content";
 import { Category, Product } from "../../../../../lib/types";
 
 export default function EditProductPage() {
@@ -57,6 +58,10 @@ export default function EditProductPage() {
       gstRate: Number(form.gstRate),
       // Blank means "not recorded", which is a null rather than a zero cost.
       costPrice: form.costPrice.trim() ? Number(form.costPrice) : null,
+      // Half finished rows are dropped here rather than sent and rejected: the
+      // API refuses a blank label, and one empty row would fail the whole save.
+      specs: cleanSpecs(form.specs),
+      details: cleanDetails(form.details),
     });
   };
 

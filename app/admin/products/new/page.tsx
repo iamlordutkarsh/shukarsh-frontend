@@ -7,6 +7,7 @@ import { ButtonLink } from "../../../../components/ui/Button";
 import { Skeleton } from "../../../../components/ui/Skeleton";
 import { useAuth } from "../../../../lib/auth";
 import { createProduct, getCategories } from "../../../../lib/api";
+import { cleanDetails, cleanSpecs } from "../../../../lib/product-content";
 import { Category } from "../../../../lib/types";
 
 export default function NewProductPage() {
@@ -42,6 +43,10 @@ export default function NewProductPage() {
       gstRate: Number(form.gstRate),
       // Blank means "not recorded", which is a null rather than a zero cost.
       costPrice: form.costPrice.trim() ? Number(form.costPrice) : null,
+      // Half finished rows are dropped here rather than sent and rejected: the
+      // API refuses a blank label, and one empty row would fail the whole save.
+      specs: cleanSpecs(form.specs),
+      details: cleanDetails(form.details),
     });
   };
 
