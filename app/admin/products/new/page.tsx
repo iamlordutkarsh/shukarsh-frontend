@@ -6,7 +6,7 @@ import ProductForm, { FormData } from "../../../../components/ProductForm";
 import { ButtonLink } from "../../../../components/ui/Button";
 import { Skeleton } from "../../../../components/ui/Skeleton";
 import { useAuth } from "../../../../lib/auth";
-import { createProduct, getCategories } from "../../../../lib/api";
+import { createProduct, getCategories, updateVariants } from "../../../../lib/api";
 import { cleanDetails, cleanSpecs } from "../../../../lib/product-content";
 import { answersToPayload } from "../../../../components/admin/AttributeFields";
 import { AttributeDefinition, Category } from "../../../../lib/types";
@@ -25,7 +25,7 @@ export default function NewProductPage() {
   const handleSubmit = async (form: FormData, definitions: AttributeDefinition[]) => {
     if (!token) throw new Error("Not authenticated");
 
-    await createProduct(token, {
+    const { product } = await createProduct(token, {
       name: form.name,
       slug: form.slug,
       description: form.description || undefined,
@@ -54,6 +54,30 @@ export default function NewProductPage() {
       manufacturerPin: form.manufacturerPin.trim() || null,
       attributes: answersToPayload(definitions, form.attributes),
     });
+
+    const colours = form.colours.filter((colour) => colour.name.trim());
+    if (colours.length === 0) return;
+
+    /**
+     * Saved as a second call, because colours live on their own endpoint: they
+     * carry stock and photos, which a product create has no business writing.
+     *
+     * Each colour gets one buyable cell with no size against it, which is what a
+     * product sold by colour alone looks like. Adding sizes later fills the rest
+     * of the matrix in.
+     */
+    await updateVariants(token, product.id, {
+      colours: colours.map((colour) => ({ ...colour, name: colour.name.trim() })),
+      variants: colours.map((colour) => ({
+        colourName: colour.name.trim(),
+        label: "",
+        isActive: true,
+      })),
+    });
+
+    // Splitting a product into colours zeroes its total, so the next thing that
+    // has to happen is counting each colour in. That only exists on its own page.
+    return `/admin/products/${product.slug}/edit`;
   };
 
   return (
