@@ -19,9 +19,14 @@ import { useVariantChoice } from "./VariantChoice";
 export function ProductPrice({ product }: { product: Product }) {
   const { variant, price } = useVariantChoice();
 
-  const spread = product.priceTo > product.priceFrom;
+  // Same defence the card and the JSON-LD already carry: an older response has
+  // no range, and falling back to the product's own price beats rendering ₹0.
+  const from = product.priceFrom ?? product.price;
+  const to = product.priceTo ?? product.price;
+
+  const spread = to > from;
   const showRange = !variant && spread;
-  const shown = variant ? price : product.priceFrom;
+  const shown = variant ? price : from;
 
   const comparePrice = product.comparePrice;
   // Only meaningful against a settled price. A range struck through against one
@@ -32,7 +37,7 @@ export function ProductPrice({ product }: { product: Product }) {
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="text-3xl font-bold tracking-tight text-ink">
-          {showRange ? `${formatPrice(product.priceFrom)} – ${formatPrice(product.priceTo)}` : formatPrice(shown)}
+          {showRange ? `${formatPrice(from)} – ${formatPrice(to)}` : formatPrice(shown)}
         </span>
 
         {!showRange && comparePrice && comparePrice > shown && (

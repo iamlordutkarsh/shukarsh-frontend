@@ -142,13 +142,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
      * what the system can work out for itself. "Fabric: cotton" is what somebody
      * came to find; the item code is not.
      */
-    ...product.attributes.map((attribute) => ({
+    // Defaulted, like `facets` on the catalogue page: a response cached before
+    // these shipped, or served by an API not yet redeployed, carries no such key,
+    // and spreading undefined threw during render — which on a server component
+    // is a 500 for the whole page rather than one missing row.
+    ...(product.attributes ?? []).map((attribute) => ({
       label: attribute.label,
       value: attribute.unit
         ? `${attribute.values.join(", ")} ${attribute.unit}`
         : attribute.values.join(", "),
     })),
-    ...product.specs,
+    ...(product.specs ?? []),
     // Short and stable, like an order number. Slicing the slug produced codes
     // cut off mid-word, which reads as a bug rather than an identifier.
     { label: "Item code", value: product.id.slice(0, 8).toUpperCase() },
@@ -308,10 +312,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
       {/* Below the buy button rather than inside the accordion beside it: this is
           the copy somebody reads once they are interested, and burying it behind
           a summary is how it never gets read at all. */}
-      {product.details.length > 0 && (
+      {(product.details ?? []).length > 0 && (
         <section className="section-shell pt-20">
           <Reveal>
-            <ProductDetails blocks={product.details} />
+            <ProductDetails blocks={product.details ?? []} />
           </Reveal>
         </section>
       )}
