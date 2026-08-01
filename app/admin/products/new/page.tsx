@@ -22,7 +22,7 @@ export default function NewProductPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleSubmit = async (form: FormData, definitions: AttributeDefinition[]) => {
+  const handleSubmit = async (form: FormData, definitions: AttributeDefinition[] | null) => {
     if (!token) throw new Error("Not authenticated");
 
     const { product } = await createProduct(token, {
@@ -52,7 +52,9 @@ export default function NewProductPage() {
       manufacturerName: form.manufacturerName.trim() || null,
       manufacturerAddr: form.manufacturerAddr.trim() || null,
       manufacturerPin: form.manufacturerPin.trim() || null,
-      attributes: answersToPayload(definitions, form.attributes),
+      // Omitted entirely when the category's questions could not be read: an
+      // empty list would be taken as "answers nothing" and erase them.
+      ...(definitions ? { attributes: answersToPayload(definitions, form.attributes) } : {}),
     });
 
     const colours = form.colours

@@ -23,8 +23,11 @@ interface ProductFormProps {
    * Handed the definitions as well as the answers, because turning one into the
    * API's shape needs to know each question's kind, and only this component ever
    * fetched them.
+   *
+   * Null when those questions could not be read, which means the answers in
+   * `data` are not trustworthy and must be left alone rather than sent.
    */
-  onSubmit: (data: FormData, definitions: AttributeDefinition[]) => Promise<string | void>;
+  onSubmit: (data: FormData, definitions: AttributeDefinition[] | null) => Promise<string | void>;
   submitLabel: string;
 }
 
@@ -118,6 +121,7 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
   const [fetched, setFetched] = useState<{
     categoryId: string;
     attributes: AttributeDefinition[];
+    failed?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -133,7 +137,9 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
       // A category whose questions will not load must not block the save. The
       // API checks them again anyway, and it is the one that decides.
       .catch(() => {
-        if (live) setFetched({ categoryId, attributes: [] });
+        // Recorded as a failure rather than as "no questions", so a save from
+        // here declines to touch the answers instead of wiping them.
+        if (live) setFetched({ categoryId, attributes: [], failed: true });
       });
 
     return () => {
@@ -144,9 +150,21 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
   // Which category the answer belongs to is carried with it, so switching
   // categories cannot briefly draw the old one's questions against the new one's
   // name. That also means neither of these needs resetting in the effect.
+  const failedAttributes = fetched?.failed === true;
   const forThisCategory = fetched?.categoryId === form.categoryId;
   const definitions = forThisCategory ? fetched!.attributes : [];
   const loadingAttributes = Boolean(form.categoryId) && !forThisCategory;
+
+  /**
+   * Whether the questions are actually known.
+   *
+   * An empty `definitions` is ambiguous: it means "this category asks nothing"
+   * and "the fetch has not landed, or failed" alike. The payload is built from
+   * it, and the API reads an empty answer list as "answers nothing" — so saving
+   * from the unknown state silently deleted every stored answer. Nothing is sent
+   * unless the questions were genuinely read.
+   */
+  const answersKnown = Boolean(form.categoryId) && forThisCategory && !failedAttributes;
 
   /** Its total is derived once it has options, so the form must not offer it. */
   const sellsByOption = (product?.variants.length ?? 0) > 0;
@@ -210,7 +228,7 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
       // A handler may say where to go next. Creating a product with colours
        // lands on that product rather than the list, because its stock is now
        // zero until each colour is counted in, and the list cannot do that.
-      const next = await onSubmit(form, definitions);
+      const next = await onSubmit(form, answersKnown ? definitions : null);
       toast({
         title: submitLabel.startsWith("Create") ? "Product created" : "Product updated",
         description: `${form.name} is live in the catalogue.`,
