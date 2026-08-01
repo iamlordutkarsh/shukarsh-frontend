@@ -341,16 +341,49 @@ export function VariantManager({ product }: { product: Product }) {
         variants: variantPayload,
       });
 
-      const next = readProduct(updated);
+      let latest = updated;
+
+      /**
+       * Any units typed against a row go in on the same click.
+       *
+       * They have their own endpoint, because stock has to move through the
+       * ledger while options do not, but nobody should have to know that. A
+       * number typed into a box beside a Save button is meant to be saved by it;
+       * expecting a second, smaller button to be pressed first is how a shop
+       * ends up believing it has stock it never counted in.
+       *
+       * One at a time: each is a write, and the pooler in front of this database
+       * is not generous.
+       */
+      const pending = readProduct(latest).cells.filter(
+        (cell) => cell.id && Number.isInteger(Number(topUp[cell.id] ?? "")) && Number(topUp[cell.id])
+      );
+
+      for (const cell of pending) {
+        const { product: after } = await adjustStock(token, product.id, {
+          delta: Number(topUp[cell.id!]),
+          reason: Number(topUp[cell.id!]) > 0 ? "RECEIVED" : "CORRECTION",
+          variantId: cell.id!,
+        });
+        latest = after;
+      }
+
+      const next = readProduct(latest);
       setColours(next.colours);
       setSizes(next.sizes);
       setCells(next.cells);
+      setTopUp({});
 
       toast({
         title: "Options saved",
-        description: `${product.name} now sells in ${variantPayload.length} option${
-          variantPayload.length === 1 ? "" : "s"
-        }.`,
+        description:
+          pending.length > 0
+            ? `${product.name} sells in ${variantPayload.length} option${
+                variantPayload.length === 1 ? "" : "s"
+              }, and ${pending.length} had stock counted in.`
+            : `${product.name} now sells in ${variantPayload.length} option${
+                variantPayload.length === 1 ? "" : "s"
+              }.`,
         tone: "success",
       });
     } catch (err) {
