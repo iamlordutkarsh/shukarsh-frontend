@@ -255,13 +255,25 @@ export function VariantManager({ product }: { product: Product }) {
         variantId: cell.id,
       });
 
-      const after = (updated.variants ?? []).find((variant) => variant.id === cell.id)?.stock;
-      setCells(cells.map((row, i) => (i === index ? { ...row, stock: after ?? row.stock } : row)));
+      /**
+       * Reset from the whole response rather than patching the one row.
+       *
+       * The server is the only thing that knows what is on the shelf, and a row
+       * patched locally can disagree with it silently — which is exactly the
+       * complaint that a number looked updated until the page was reloaded. Same
+       * path the save below uses, so both end up showing the same thing.
+       */
+      const next = readProduct(updated);
+      setColours(next.colours);
+      setSizes(next.sizes);
+      setCells(next.cells);
       setTopUp({ ...topUp, [cell.id]: "" });
+
+      const after = next.cells.find((row) => row.id === cell.id)?.stock ?? 0;
 
       toast({
         title: "Stock updated",
-        description: `${cellName(cell)} now shows ${after ?? 0}.`,
+        description: `${cellName(cell)} now shows ${after}. Reload to confirm it stuck.`,
         tone: "success",
       });
     } catch (err) {
