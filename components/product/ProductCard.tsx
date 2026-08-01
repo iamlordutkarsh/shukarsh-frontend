@@ -13,6 +13,7 @@ import { cn, discountPercent, formatPrice } from "../../lib/utils";
 import { PastelTile } from "../ui/PastelTile";
 import { useToast } from "../ui/Toast";
 import { QuickView } from "./QuickView";
+import { Swatch } from "./Swatch";
 import { Stars } from "./Stars";
 import { WishlistButton } from "./WishlistButton";
 
@@ -196,12 +197,9 @@ export function ProductCard({ product, priority = false, className }: ProductCar
             {swatches.length > 0 && (
               <span className="flex items-center gap-1 pt-1.5" aria-label={`${swatches.length} colours`}>
                 {swatches.map((colour) => (
-                  <span
-                    key={colour.id}
-                    title={colour.name}
-                    className="h-3 w-3 rounded-full ring-1 ring-line"
-                    style={{ backgroundColor: colour.hex ?? "#e7e3f0" }}
-                  />
+                  <span key={colour.id} title={colour.name} className="rounded-full ring-1 ring-line">
+                    <Swatch hex={colour.hex} hex2={colour.hex2} className="h-3 w-3" />
+                  </span>
                 ))}
                 {(product.colours ?? []).filter((colour) => colour.isActive).length > swatches.length && (
                   <span className="text-[0.6875rem] font-semibold text-muted">

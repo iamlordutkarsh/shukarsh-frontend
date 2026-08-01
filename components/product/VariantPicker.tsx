@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import type { Product } from "../../lib/types";
 import { sellableColours, sellableSizes, variantFor } from "../../lib/variants";
 import { cn } from "../../lib/utils";
+import { Swatch } from "./Swatch";
 
 /**
  * The colour and size a shopper picks, drawn as one control.
@@ -68,14 +69,7 @@ export function VariantPicker({
                     gone && "opacity-45"
                   )}
                 >
-                  <span
-                    aria-hidden
-                    className="h-full w-full rounded-full"
-                    // The only place a shop-chosen colour can land: a hex is not
-                    // expressible as a utility class, and there is no palette to
-                    // map it onto. Null falls back to a neutral chip.
-                    style={{ backgroundColor: colour.hex ?? "#e7e3f0" }}
-                  />
+                  <Swatch hex={colour.hex} hex2={colour.hex2} className="h-full w-full" />
                   {picked && (
                     <Check
                       className="absolute h-4 w-4 text-white mix-blend-difference"
