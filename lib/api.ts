@@ -6,6 +6,7 @@ import {
   AttributeDefinition,
   AttributeKind,
   Category,
+  ColourPreset,
   Facet,
   Coupon,
   CourierOption,
@@ -103,6 +104,34 @@ export async function deleteCategoryAttribute(
     token,
     { method: "DELETE" }
   );
+}
+
+/**
+ * The shop's own colour list.
+ *
+ * Admin only: it exists to guide what an admin types, and a shopper reads the
+ * colours off the product itself, which carries its own copy.
+ */
+export async function getColourPalette(token: string): Promise<{ colours: ColourPreset[] }> {
+  return withToken<{ colours: ColourPreset[] }>("/colours", token, { cache: "no-store" });
+}
+
+export interface ColourPresetInput {
+  id?: string;
+  name: string;
+  hex?: string | null;
+  hex2?: string | null;
+}
+
+/** The whole palette at once, since reordering it is one decision. */
+export async function saveColourPalette(
+  token: string,
+  colours: ColourPresetInput[]
+): Promise<{ colours: ColourPreset[] }> {
+  return withToken<{ colours: ColourPreset[] }>("/colours", token, {
+    method: "PUT",
+    body: JSON.stringify({ colours }),
+  });
 }
 
 export async function getCategory(slug: string): Promise<{ category: Category & { products: Product[] } }> {
@@ -771,6 +800,8 @@ export interface ColourInput {
   id?: string;
   name: string;
   hex?: string | null;
+  /** Set only for a print or a stripe that no single colour describes. */
+  hex2?: string | null;
   images: string[];
   isActive: boolean;
 }

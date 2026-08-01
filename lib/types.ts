@@ -91,10 +91,21 @@ export interface ProductColour {
   name: string;
   /** `#rrggbb`, or null for a colour with no sensible hex. */
   hex: string | null;
+  /** The other half of a two-tone swatch. Null draws a plain circle. */
+  hex2: string | null;
   /** This colour's own photos. Empty falls back to the product's. */
   images: string[];
   position: number;
   isActive: boolean;
+}
+
+/** One colour in the shop's own palette, reused across products. */
+export interface ColourPreset {
+  id: string;
+  name: string;
+  hex: string | null;
+  hex2: string | null;
+  position: number;
 }
 
 /** One row of the spec table under a product. */
