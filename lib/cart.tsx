@@ -56,24 +56,29 @@ export function toApiItems(items: CartItem[]): { productId: string; variantId?: 
 }
 
 /**
- * How many of this line the shop looks like it has.
- *
- * Only ever a cap on the stepper: the bag holds a snapshot that may be days old,
- * and the real answer comes from the server when the bag is priced.
- */
-/**
  * What one of this line costs.
  *
  * The snapshot in the bag may be days old and a cell may price differently from
  * its product, so this reads the cell when the bag still knows about it and
  * falls back to the product otherwise. Display only, like lineStock.
+ *
+ * A cell saved before cells carried prices has no `price` at all, so the
+ * fallback covers a missing field as well as a missing cell: returning undefined
+ * turned the bag total into NaN, which formats as ₹0 and silently priced every
+ * line at nothing.
  */
 export function linePrice(item: CartItem): number {
   if (!item.variantId) return item.product.price;
   const cell = item.product.variants?.find((variant) => variant.id === item.variantId);
-  return cell ? cell.price : item.product.price;
+  return cell?.price ?? item.product.price;
 }
 
+/**
+ * How many of this line the shop looks like it has.
+ *
+ * Only ever a cap on the stepper: the bag holds a snapshot that may be days old,
+ * and the real answer comes from the server when the bag is priced.
+ */
 export function lineStock(item: CartItem): number {
   if (!item.variantId) return item.product.stock;
   const size = item.product.variants?.find((variant) => variant.id === item.variantId);
