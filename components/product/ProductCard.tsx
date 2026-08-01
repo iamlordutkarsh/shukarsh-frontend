@@ -14,6 +14,7 @@ import { PastelTile } from "../ui/PastelTile";
 import { useToast } from "../ui/Toast";
 import { QuickView } from "./QuickView";
 import { Swatch } from "./Swatch";
+import { totalStock } from "../../lib/variants";
 import { Stars } from "./Stars";
 import { WishlistButton } from "./WishlistButton";
 
@@ -37,7 +38,9 @@ export function ProductCard({ product, priority = false, className }: ProductCar
 
   const image = product.images[0];
   const discount = discountPercent(product.priceFrom ?? product.price, product.comparePrice);
-  const soldOut = product.stock <= 0;
+  // Off the options where there are any, so a card cannot disagree with the
+  // product page it links to.
+  const soldOut = totalStock(product) <= 0;
   const hasOptions = (product.variants ?? []).some((variant) => variant.isActive);
   // A card cannot show every price a product has, so it shows the cheapest and
   // says so. Quoting one figure when the XL costs more is how somebody reaches

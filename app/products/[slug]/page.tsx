@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { getProduct, getProducts, getReviews } from "../../../lib/api";
 import { discountPercent } from "../../../lib/utils";
 import { isLowStock } from "../../../lib/inventory";
+import { totalStock } from "../../../lib/variants";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { Reveal, RevealGroup, RevealItem } from "../../../components/motion/Reveal";
 import { AddToCartButton } from "../../../components/product/AddToCartButton";
@@ -115,8 +116,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const comparePrice = product.comparePrice;
   const discount = discountPercent(product.price, comparePrice);
-  const soldOut = product.stock <= 0;
-  const runningLow = isLowStock(product);
+
+  /**
+   * Counted off the options when there are any, rather than off the product.
+   *
+   * The two are meant to agree — the product total is kept as the sum of its
+   * cells — but a total written directly could drift, and when it did this page
+   * showed an "in stock" badge beside a sold out button. Whichever number the buy
+   * button obeys is the one worth printing.
+   */
+  const available = totalStock(product);
+  const soldOut = available <= 0;
+  const runningLow = isLowStock({ ...product, stock: available });
 
   // Only what this product actually carries. A spec table full of "—" reads as
   // missing data rather than detail, so blank fields are dropped entirely.
@@ -143,7 +154,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     { label: "Item code", value: product.id.slice(0, 8).toUpperCase() },
     dimensions ? { label: "Dimensions", value: dimensions } : null,
     product.weightKg ? { label: "Weight", value: `${product.weightKg} kg` } : null,
-    { label: "Availability", value: soldOut ? "Out of stock" : `${product.stock} in stock` },
+    { label: "Availability", value: soldOut ? "Out of stock" : `${available} in stock` },
     product.hsn ? { label: "HSN", value: product.hsn } : null,
     // Legally required on the label, so it belongs where a customer can read it
     // rather than only on the packaging.
@@ -216,7 +227,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <Pill tone="lavender">{product.category.name}</Pill>
-                  {!soldOut && runningLow && <Pill tone="peach">Only {product.stock} left</Pill>}
+                  {!soldOut && runningLow && <Pill tone="peach">Only {available} left</Pill>}
                   {!soldOut && !runningLow && <Pill tone="mint">In stock</Pill>}
                 </div>
 
