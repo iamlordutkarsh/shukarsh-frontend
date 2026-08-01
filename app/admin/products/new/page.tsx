@@ -55,28 +55,34 @@ export default function NewProductPage() {
       attributes: answersToPayload(definitions, form.attributes),
     });
 
-    const colours = form.colours.filter((colour) => colour.name.trim());
-    if (colours.length === 0) return;
+    const colours = form.colours
+      .filter((colour) => colour.name.trim())
+      .map((colour) => ({ ...colour, name: colour.name.trim() }));
+    const sizes = form.sizes.map((size) => size.trim()).filter(Boolean);
+
+    if (colours.length === 0 && sizes.length === 0) return;
 
     /**
-     * Saved as a second call, because colours live on their own endpoint: they
+     * Saved as a second call, because options live on their own endpoint: they
      * carry stock and photos, which a product create has no business writing.
      *
-     * Each colour gets one buyable cell with no size against it, which is what a
-     * product sold by colour alone looks like. Adding sizes later fills the rest
-     * of the matrix in.
+     * The cells are the cross product of whichever axes were given. Either alone
+     * is an ordinary product — colours with no sizes, or sizes with no colours —
+     * so the missing axis contributes exactly one blank entry rather than none,
+     * which would multiply the whole matrix away to nothing.
      */
+    const colourNames: (string | null)[] = colours.length > 0 ? colours.map((c) => c.name) : [null];
+    const labels = sizes.length > 0 ? sizes : [""];
+
     await updateVariants(token, product.id, {
-      colours: colours.map((colour) => ({ ...colour, name: colour.name.trim() })),
-      variants: colours.map((colour) => ({
-        colourName: colour.name.trim(),
-        label: "",
-        isActive: true,
-      })),
+      colours,
+      variants: colourNames.flatMap((colourName) =>
+        labels.map((label) => ({ colourName, label, isActive: true }))
+      ),
     });
 
-    // Splitting a product into colours zeroes its total, so the next thing that
-    // has to happen is counting each colour in. That only exists on its own page.
+    // Splitting a product into options zeroes its total, so the next thing that
+    // has to happen is counting each one in. That only exists on its own page.
     return `/admin/products/${product.slug}/edit`;
   };
 
