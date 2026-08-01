@@ -30,6 +30,14 @@ interface ColourRow {
 
 interface CellRow {
   id?: string;
+  /**
+   * Which colour this cell hangs from, when that colour already exists.
+   *
+   * Carried beside the name because the name is what a rename changes: matching
+   * on it lost every cell the moment somebody fixed a typo, and the rebuilt rows
+   * came back without their ids, stock or price.
+   */
+  colourId?: string | null;
   /** Null on a product sold in sizes only. */
   colourName: string | null;
   /** Empty on a product sold by colour alone. */
@@ -58,18 +66,25 @@ function cellKey(colourName: string | null, label: string): string {
 function buildCells(colours: ColourRow[], sizes: string[], previous: CellRow[]): CellRow[] {
   if (colours.length === 0 && sizes.length === 0) return [];
 
-  const known = new Map(previous.map((cell) => [cellKey(cell.colourName, cell.label), cell]));
-  const colourNames: (string | null)[] = colours.length > 0 ? colours.map((c) => c.name) : [null];
+  // Keyed on the colour's id where it has one, so a rename keeps its cells.
+  const known = new Map(
+    previous.map((cell) => [cellKey(cell.colourId ?? cell.colourName, cell.label), cell])
+  );
+
+  const axes: { id: string | null; name: string | null }[] =
+    colours.length > 0
+      ? colours.map((colour) => ({ id: colour.id ?? null, name: colour.name }))
+      : [{ id: null, name: null }];
   const labels = sizes.length > 0 ? sizes : [""];
 
-  return colourNames.flatMap((colourName) =>
+  return axes.flatMap((axis) =>
     labels.map((label) => {
-      const existing = known.get(cellKey(colourName, label));
+      const existing = known.get(cellKey(axis.id ?? axis.name, label));
       // The names are refreshed from the lists even on a cell we already knew, so
       // fixing a typo in a colour renames its whole row rather than orphaning it.
       return existing
-        ? { ...existing, colourName, label }
-        : { colourName, label, price: "", isActive: true };
+        ? { ...existing, colourId: axis.id, colourName: axis.name, label }
+        : { colourId: axis.id, colourName: axis.name, label, price: "", isActive: true };
     })
   );
 }
@@ -89,6 +104,7 @@ function readProduct(product: Product): { colours: ColourRow[]; sizes: string[];
 
   const cells: CellRow[] = (product.variants ?? []).map((variant) => ({
     id: variant.id,
+    colourId: variant.colourId,
     colourName: variant.colourId ? (nameById.get(variant.colourId) ?? null) : null,
     label: variant.label,
     // Only an override is shown. A cell that simply costs what the product costs
