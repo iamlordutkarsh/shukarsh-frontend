@@ -4,13 +4,14 @@ import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_PACKAGING } from "../lib/packaging";
 import { AttributeDefinition, Category, DetailBlock, Product, ProductSpec } from "../lib/types";
-import { getCategoryAttributes } from "../lib/api";
+import { getCategoryAttributes, type ColourInput } from "../lib/api";
 import { cn, discountPercent, formatPrice, round2 } from "../lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
 import { ImageUploader } from "./admin/ImageUploader";
 import { CategoryPicker } from "./admin/CategoryPicker";
+import { ColourChooser } from "./admin/ColourChooser";
 import { AttributeFields, answersFromProduct, type AttributeAnswers } from "./admin/AttributeFields";
 import { SpecEditor } from "./admin/SpecEditor";
 import { DetailsEditor } from "./admin/DetailsEditor";
@@ -23,7 +24,7 @@ interface ProductFormProps {
    * API's shape needs to know each question's kind, and only this component ever
    * fetched them.
    */
-  onSubmit: (data: FormData, definitions: AttributeDefinition[]) => Promise<void>;
+  onSubmit: (data: FormData, definitions: AttributeDefinition[]) => Promise<string | void>;
   submitLabel: string;
 }
 
@@ -53,6 +54,11 @@ export interface FormData {
   manufacturerPin: string;
   /** Keyed by the definition's key, so it survives the category changing. */
   attributes: AttributeAnswers;
+  /**
+   * Only used while creating. On an existing product the matrix editor below the
+   * form owns the colours, because it can also show stock and per-cell prices.
+   */
+  colours: ColourInput[];
 }
 
 /** Straight from the shared defaults, so the form and the list cannot disagree. */
@@ -96,6 +102,7 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     manufacturerAddr: product?.manufacturerAddr || "",
     manufacturerPin: product?.manufacturerPin || "",
     attributes: answersFromProduct(product?.attributes),
+    colours: [],
   });
 
   /**
@@ -195,13 +202,16 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     setLoading(true);
 
     try {
-      await onSubmit(form, definitions);
+      // A handler may say where to go next. Creating a product with colours
+       // lands on that product rather than the list, because its stock is now
+       // zero until each colour is counted in, and the list cannot do that.
+      const next = await onSubmit(form, definitions);
       toast({
         title: submitLabel.startsWith("Create") ? "Product created" : "Product updated",
         description: `${form.name} is live in the catalogue.`,
         tone: "success",
       });
-      router.push("/admin/products");
+      router.push(typeof next === "string" ? next : "/admin/products");
     } catch (err) {
       toast({
         title: "Could not save product",
@@ -274,6 +284,21 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
           loading={loadingAttributes}
         />
       </FormCard>
+
+      {/* Only while creating. Once the product exists, the matrix editor under
+          the form owns the colours: it can show stock and per-cell prices, which
+          nothing can do before there is a product to hang them on. */}
+      {!product && (
+        <FormCard
+          title="Colours"
+          description="What this comes in. Pick from the shop palette, or name one of your own."
+        >
+          <ColourChooser
+            value={form.colours}
+            onChange={(colours) => setForm({ ...form, colours })}
+          />
+        </FormCard>
+      )}
 
       <FormCard
         title="Compliance"
