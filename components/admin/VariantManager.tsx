@@ -515,67 +515,96 @@ export function VariantManager({ product }: { product: Product }) {
             </h3>
             <p className="mt-1 text-xs text-muted">
               Switch off a combination this product does not come in. Leave a price blank to charge the
-              product&rsquo;s own {formatPrice(product.price)}. Type a number beside a row to put units
-              on that shelf.
+              product&rsquo;s own {formatPrice(product.price)}.
             </p>
 
-            <ul className="mt-3 space-y-2">
+            {/* Labelled columns, because two bare number boxes side by side is
+                how a price gets typed into the stock box and nothing happens. */}
+            <div className="mt-4 hidden items-center gap-3 px-3.5 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-faint sm:flex">
+              <span className="min-w-0 flex-1">Option</span>
+              <span className="w-44 shrink-0">Stock</span>
+              <span className="w-24 shrink-0">Price</span>
+              <span className="w-16 shrink-0" />
+            </div>
+
+            <ul className="mt-2 space-y-2">
               {cells.map((cell, index) => (
                 <li
                   key={cell.id ?? `new-cell-${cellKey(cell.colourName, cell.label)}`}
                   className="flex flex-wrap items-center gap-3 rounded-2xl bg-surface-soft px-3.5 py-2.5"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
-                    {[cell.colourName, cell.label].filter(Boolean).join(" · ")}
+                    {cellName(cell)}
                   </span>
 
                   {cell.id ? (
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-xs font-semibold text-muted">{cell.stock ?? 0} in stock</span>
-                      <input
-                        value={topUp[cell.id] ?? ""}
-                        onChange={(e) => setTopUp({ ...topUp, [cell.id!]: e.target.value })}
-                        onKeyDown={(e) => {
-                          // Enter receives the units rather than submitting the
-                          // page: this sits inside the product form.
-                          if (e.key !== "Enter") return;
-                          e.preventDefault();
-                          void receive(index);
-                        }}
-                        inputMode="numeric"
-                        placeholder="+0"
-                        aria-label={`Units to add to ${cellName(cell)}`}
-                        className="w-16 rounded-xl border border-line-strong bg-white px-2 py-1.5 text-center text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
-                      />
+                    <span className="flex w-44 shrink-0 items-center gap-2">
+                      <span className="w-14 text-sm font-bold tabular-nums text-ink">
+                        {cell.stock ?? 0}
+                      </span>
+                      <span className="relative flex-1">
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-bold text-mint-600"
+                        >
+                          +
+                        </span>
+                        <input
+                          value={topUp[cell.id] ?? ""}
+                          onChange={(e) => setTopUp({ ...topUp, [cell.id!]: e.target.value })}
+                          onKeyDown={(e) => {
+                            // Enter receives the units rather than submitting the
+                            // page: this sits inside the product form.
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+                            void receive(index);
+                          }}
+                          inputMode="numeric"
+                          placeholder="0"
+                          aria-label={`Units to add to ${cellName(cell)}`}
+                          className="w-full rounded-xl border border-line-strong bg-white py-1.5 pl-6 pr-2 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
+                        />
+                      </span>
                       <button
                         type="button"
                         onClick={() => void receive(index)}
                         disabled={receiving === cell.id || !Number(topUp[cell.id] ?? "")}
                         aria-label={`Add stock to ${cellName(cell)}`}
-                        className="grid h-8 w-8 place-items-center rounded-full bg-mint-100 text-mint-600 transition-colors hover:bg-mint-200 disabled:opacity-40"
+                        title="Put these units on the shelf"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-mint-100 text-mint-600 transition-colors hover:bg-mint-200 disabled:opacity-40"
                       >
                         <PackagePlus className="h-3.5 w-3.5" strokeWidth={2.4} />
                       </button>
                     </span>
                   ) : (
                     // A cell that has never been saved has no id to stock against.
-                    <span className="shrink-0 text-xs font-semibold text-faint">Save to stock this</span>
+                    <span className="w-44 shrink-0 text-xs font-semibold text-faint">
+                      Save first to stock this
+                    </span>
                   )}
 
-                  <input
-                    value={cell.price}
-                    onChange={(e) => updateCell(index, { price: e.target.value })}
-                    inputMode="decimal"
-                    placeholder={String(product.price)}
-                    aria-label={`Price for ${[cell.colourName, cell.label].filter(Boolean).join(" ")}`}
-                    className="w-24 shrink-0 rounded-xl border border-line-strong bg-white px-3 py-1.5 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
-                  />
+                  <span className="relative w-24 shrink-0">
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-faint"
+                    >
+                      ₹
+                    </span>
+                    <input
+                      value={cell.price}
+                      onChange={(e) => updateCell(index, { price: e.target.value })}
+                      inputMode="decimal"
+                      placeholder={String(product.price)}
+                      aria-label={`Price for ${cellName(cell)}`}
+                      className="w-full rounded-xl border border-line-strong bg-white py-1.5 pl-6 pr-2 text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
+                    />
+                  </span>
 
                   <button
                     type="button"
                     onClick={() => updateCell(index, { isActive: !cell.isActive })}
                     className={cn(
-                      "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+                      "w-16 shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
                       cell.isActive
                         ? "bg-mint-100 text-mint-600 hover:bg-mint-200"
                         : "bg-surface text-faint hover:bg-lavender-50"
