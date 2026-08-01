@@ -90,6 +90,11 @@ async function Catalog({
 
   const { products, pagination } = result;
 
+  // Defaulted, not assumed. An API that has not been redeployed yet, or a
+  // response cached from before facets existed, has no such key — and reading
+  // .length off it took the whole shop page down rather than dropping one panel.
+  const available = result.facets ?? [];
+
   const buildPageHref = (target: number) => {
     const params = new URLSearchParams();
     if (categoryId) params.set("categoryId", categoryId);
@@ -114,9 +119,9 @@ async function Catalog({
         total={pagination.total}
       />
 
-      {result.facets.length > 0 && (
+      {available.length > 0 && (
         <div className="mt-6">
-          <FacetPanel facets={result.facets} />
+          <FacetPanel facets={available} />
         </div>
       )}
 
