@@ -148,6 +148,9 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
   const definitions = forThisCategory ? fetched!.attributes : [];
   const loadingAttributes = Boolean(form.categoryId) && !forThisCategory;
 
+  /** Its total is derived once it has options, so the form must not offer it. */
+  const sellsByOption = (product?.variants.length ?? 0) > 0;
+
   const priceNumber = Number(form.price);
   const pricePreview = form.price.trim() && Number.isFinite(priceNumber) ? formatPrice(priceNumber) : null;
 
@@ -355,26 +358,41 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
 
       <FormCard title="Inventory" description="Stock and shelf placement.">
         <div className="grid gap-5 sm:grid-cols-2">
-          <FormField
-            label="Stock"
-            htmlFor={`${uid}-stock`}
-            hint={
-              product
-                ? "Saving this records a recount. To add a delivery, use the stock badge on the products list instead: it adds to whatever is there now."
-                : undefined
-            }
-          >
-            <input
-              id={`${uid}-stock`}
-              required
-              type="number"
-              min="0"
-              step="1"
-              value={form.stock}
-              onChange={(e) => setForm({ ...form, stock: e.target.value })}
-              className={inputClass}
-            />
-          </FormField>
+          {/* Withheld once a product has options, because its total is only
+              their sum by then. Leaving the box here is what let a shop type 22
+              against a product whose every colour and size held nothing, and see
+              "in stock" beside a sold out button. */}
+          {sellsByOption ? (
+            <div className="rounded-2xl bg-surface-soft px-4 py-3.5 sm:col-span-2">
+              <p className="text-sm font-semibold text-ink">Stock lives on each colour and size</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                This product has {product?.variants.length} option
+                {product?.variants.length === 1 ? "" : "s"}, so its total is whatever they add up to.
+                Count them in from the stock badge on the products list.
+              </p>
+            </div>
+          ) : (
+            <FormField
+              label="Stock"
+              htmlFor={`${uid}-stock`}
+              hint={
+                product
+                  ? "Saving this records a recount. To add a delivery, use the stock badge on the products list instead: it adds to whatever is there now."
+                  : undefined
+              }
+            >
+              <input
+                id={`${uid}-stock`}
+                required
+                type="number"
+                min="0"
+                step="1"
+                value={form.stock}
+                onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                className={inputClass}
+              />
+            </FormField>
+          )}
           <FormField
             label="Reorder at"
             htmlFor={`${uid}-threshold`}
