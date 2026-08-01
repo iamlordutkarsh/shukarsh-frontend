@@ -11,7 +11,7 @@ import { useToast } from "./ui/Toast";
 import { FormCard, FormField, inputClass, textareaClass } from "./admin/FormField";
 import { ImageUploader } from "./admin/ImageUploader";
 import { CategoryPicker } from "./admin/CategoryPicker";
-import { ColourChooser } from "./admin/ColourChooser";
+import { OptionsChooser } from "./admin/OptionsChooser";
 import { AttributeFields, answersFromProduct, type AttributeAnswers } from "./admin/AttributeFields";
 import { SpecEditor } from "./admin/SpecEditor";
 import { DetailsEditor } from "./admin/DetailsEditor";
@@ -56,9 +56,10 @@ export interface FormData {
   attributes: AttributeAnswers;
   /**
    * Only used while creating. On an existing product the matrix editor below the
-   * form owns the colours, because it can also show stock and per-cell prices.
+   * form owns these, because it can also show stock and per-cell prices.
    */
   colours: ColourInput[];
+  sizes: string[];
 }
 
 /** Straight from the shared defaults, so the form and the list cannot disagree. */
@@ -103,6 +104,7 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
     manufacturerPin: product?.manufacturerPin || "",
     attributes: answersFromProduct(product?.attributes),
     colours: [],
+    sizes: [],
   });
 
   /**
@@ -290,12 +292,14 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
           nothing can do before there is a product to hang them on. */}
       {!product && (
         <FormCard
-          title="Colours"
-          description="What this comes in. Pick from the shop palette, or name one of your own."
+          title="Colours & sizes"
+          description="What this comes in. Every colour crossed with every size becomes something to buy."
         >
-          <ColourChooser
-            value={form.colours}
-            onChange={(colours) => setForm({ ...form, colours })}
+          <OptionsChooser
+            colours={form.colours}
+            sizes={form.sizes}
+            onColours={(colours) => setForm({ ...form, colours })}
+            onSizes={(sizes) => setForm({ ...form, sizes })}
           />
         </FormCard>
       )}
