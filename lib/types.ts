@@ -46,6 +46,20 @@ export interface AttributeDefinition {
   inherited: boolean;
 }
 
+/** One value a filter offers, and what picking it would leave. */
+export interface FacetValue {
+  value: string;
+  count: number;
+  selected: boolean;
+}
+
+/** One question offered as a filter on the catalogue. */
+export interface Facet {
+  key: string;
+  label: string;
+  values: FacetValue[];
+}
+
 /** What one product answered. Always a list, so one shape reads for every kind. */
 export interface ProductAttribute {
   key: string;

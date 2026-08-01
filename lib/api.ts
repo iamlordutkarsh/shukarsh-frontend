@@ -6,6 +6,7 @@ import {
   AttributeDefinition,
   AttributeKind,
   Category,
+  Facet,
   Coupon,
   CourierOption,
   ManualStockReason,
@@ -110,7 +111,22 @@ export async function getCategory(slug: string): Promise<{ category: Category & 
 
 export type ProductSort = "newest" | "oldest" | "price-asc" | "price-desc" | "name";
 
-export async function getProducts(params?: { categoryId?: string; search?: string; page?: number; limit?: number; sort?: ProductSort }): Promise<{ products: Product[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
+export interface ProductListResult {
+  products: Product[];
+  /** The filters worth offering for this result, empty on an unnarrowed catalogue. */
+  facets: Facet[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+}
+
+export async function getProducts(params?: {
+  categoryId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+  sort?: ProductSort;
+  /** Picked filters, keyed by the question's key. */
+  facets?: Record<string, string[]>;
+}): Promise<ProductListResult> {
   const searchParams = new URLSearchParams();
   if (params?.categoryId) searchParams.set("categoryId", params.categoryId);
   if (params?.search) searchParams.set("search", params.search);
@@ -118,8 +134,14 @@ export async function getProducts(params?: { categoryId?: string; search?: strin
   if (params?.limit) searchParams.set("limit", params.limit.toString());
   if (params?.sort) searchParams.set("sort", params.sort);
 
+  // Bracket syntax, which Express parses back into an object, and comma
+  // separated within one question because ticking two boxes means "either".
+  for (const [key, values] of Object.entries(params?.facets ?? {})) {
+    if (values.length > 0) searchParams.set(`a[${key}]`, values.join(","));
+  }
+
   const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
-  return fetcher<{ products: Product[]; pagination: { page: number; limit: number; total: number; pages: number } }>(`/products${query}`, { next: { revalidate: 60 } });
+  return fetcher<ProductListResult>(`/products${query}`, { next: { revalidate: 60 } });
 }
 
 /**
