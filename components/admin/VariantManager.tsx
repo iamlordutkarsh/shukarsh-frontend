@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import type { Product } from "../../lib/types";
-import { updateVariants, type ColourInput, type VariantInput } from "../../lib/api";
+import type { ColourPreset, Product } from "../../lib/types";
+import { getColourPalette, updateVariants, type ColourInput, type VariantInput } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { FormCard } from "./FormField";
 import { ImageUploader } from "./ImageUploader";
+import { Swatch } from "../product/Swatch";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
 import { cn } from "../../lib/utils";
@@ -15,6 +16,8 @@ interface ColourRow {
   id?: string;
   name: string;
   hex: string | null;
+  /** The other half of a two-tone swatch, for a print or a stripe. */
+  hex2: string | null;
   images: string[];
   isActive: boolean;
 }
@@ -71,6 +74,7 @@ function readProduct(product: Product): { colours: ColourRow[]; sizes: string[];
     id: colour.id,
     name: colour.name,
     hex: colour.hex,
+    hex2: colour.hex2,
     images: colour.images,
     isActive: colour.isActive,
   }));
@@ -125,6 +129,26 @@ export function VariantManager({ product }: { product: Product }) {
   const [cells, setCells] = useState<CellRow[]>(initial.cells);
   const [newSize, setNewSize] = useState("");
 
+  /** The shop's palette, offered as one-click adds so names stop drifting. */
+  const [palette, setPalette] = useState<ColourPreset[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+
+    getColourPalette(token)
+      // A palette that will not load is not a reason to block editing colours:
+      // typing one by hand still works, which is what happens with no palette.
+      .then((data) => {
+        if (live) setPalette(data.colours);
+      })
+      .catch(() => {});
+
+    return () => {
+      live = false;
+    };
+  }, [token]);
+
   /** Every change to either axis reshapes the matrix, so the two move together. */
   const applyAxes = (nextColours: ColourRow[], nextSizes: string[]) => {
     setColours(nextColours);
@@ -132,14 +156,24 @@ export function VariantManager({ product }: { product: Product }) {
     setCells((current) => buildCells(nextColours, nextSizes, current));
   };
 
-  const addColour = () => {
-    const taken = colours.some((colour) => colour.name.trim().toLowerCase() === "new colour");
+  /**
+   * Adds a colour from the shop's palette, or a blank one to name by hand.
+   *
+   * The palette is offered rather than enforced: a one-off colour still has to be
+   * possible, and a shop that has not built a palette yet must not be blocked
+   * from adding colours at all.
+   */
+  const addColour = (preset?: ColourPreset) => {
+    const name = preset?.name ?? "New colour";
+    const taken = colours.some((colour) => colour.name.trim().toLowerCase() === name.toLowerCase());
+
     applyAxes(
       [
         ...colours,
         {
-          name: taken ? `New colour ${colours.length + 1}` : "New colour",
-          hex: "#cccccc",
+          name: taken ? `${name} ${colours.length + 1}` : name,
+          hex: preset?.hex ?? "#cccccc",
+          hex2: preset?.hex2 ?? null,
           images: [],
           isActive: true,
         },
@@ -219,6 +253,7 @@ export function VariantManager({ product }: { product: Product }) {
         ...(colour.id ? { id: colour.id } : {}),
         name: colour.name.trim(),
         hex: colour.hex,
+        hex2: colour.hex2,
         images: colour.images,
         isActive: colour.isActive,
       }));
@@ -275,6 +310,9 @@ export function VariantManager({ product }: { product: Product }) {
               {colours.map((colour, index) => (
                 <li key={colour.id ?? `new-colour-${index}`} className="rounded-3xl bg-surface-soft p-4">
                   <div className="flex items-center gap-3">
+                    <span className="shrink-0 rounded-full ring-1 ring-line-strong">
+                      <Swatch hex={colour.hex} hex2={colour.hex2} className="h-9 w-9" />
+                    </span>
                     <input
                       type="color"
                       // A colour with no hex still needs something in the picker,
@@ -335,10 +373,35 @@ export function VariantManager({ product }: { product: Product }) {
             </p>
           )}
 
-          <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={addColour}>
-            <Plus className="h-4 w-4" strokeWidth={2.3} />
-            Add colour
-          </Button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => addColour()}>
+              <Plus className="h-4 w-4" strokeWidth={2.3} />
+              Add colour
+            </Button>
+
+            {/* One click from the shop's palette, which is what keeps "Navy" from
+                also being typed as "navy blue" on the next product. */}
+            {palette
+              .filter(
+                (preset) =>
+                  !colours.some(
+                    (colour) => colour.name.trim().toLowerCase() === preset.name.toLowerCase()
+                  )
+              )
+              .map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => addColour(preset)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-lavender-50 py-1 pl-1 pr-3 text-xs font-bold text-lavender-700 transition-colors hover:bg-lavender-100"
+                >
+                  <span className="rounded-full ring-1 ring-line">
+                    <Swatch hex={preset.hex} hex2={preset.hex2} className="h-5 w-5" />
+                  </span>
+                  {preset.name}
+                </button>
+              ))}
+          </div>
         </section>
 
         <section className="border-t border-line pt-5">
