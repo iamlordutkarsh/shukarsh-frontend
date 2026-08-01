@@ -42,52 +42,40 @@ export function FilterBar({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="no-scrollbar -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
-        <Link
-          href={buildHref({ categoryId: undefined })}
-          className={cn(
-            "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300",
-            !activeCategoryId
-              ? "bg-ink-900 text-white shadow-soft"
-              : "bg-surface/80 text-ink-700 shadow-soft ring-1 ring-line hover:ring-lavender-300"
-          )}
-        >
-          Everything
-        </Link>
-        {categories.map((category) => (
+    // Chips and sort share a row, so the sort is anchored to something. On its
+    // own line it sat a thousand pixels from the only thing beside it and read
+    // as a control that had come loose.
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="no-scrollbar -mx-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-1 py-1">
           <Link
-            key={category.id}
-            href={buildHref({ categoryId: category.id })}
+            href={buildHref({ categoryId: undefined })}
             className={cn(
               "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300",
-              activeCategoryId === category.id
+              !activeCategoryId
                 ? "bg-ink-900 text-white shadow-soft"
                 : "bg-surface/80 text-ink-700 shadow-soft ring-1 ring-line hover:ring-lavender-300"
             )}
           >
-            {category.name}
+            Everything
           </Link>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          <span>
-            {total} {total === 1 ? "piece" : "pieces"}
-          </span>
-          {search && (
+          {categories.map((category) => (
             <Link
-              href={buildHref({ search: undefined })}
-              className="inline-flex items-center gap-1.5 rounded-full bg-lavender-100 px-3 py-1 text-xs font-semibold text-lavender-700 transition-colors hover:bg-lavender-200"
+              key={category.id}
+              href={buildHref({ categoryId: category.id })}
+              className={cn(
+                "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300",
+                activeCategoryId === category.id
+                  ? "bg-ink-900 text-white shadow-soft"
+                  : "bg-surface/80 text-ink-700 shadow-soft ring-1 ring-line hover:ring-lavender-300"
+              )}
             >
-              “{search}”
-              <X className="h-3 w-3" strokeWidth={2.8} />
+              {category.name}
             </Link>
-          )}
+          ))}
         </div>
 
-        <label className="relative inline-flex items-center gap-2">
+        <label className="relative inline-flex shrink-0 items-center">
           <span className="sr-only">Sort products</span>
           <ArrowUpDown
             aria-hidden
@@ -97,7 +85,7 @@ export function FilterBar({
           <select
             value={activeSort}
             onChange={(event) => router.push(buildHref({ sort: event.target.value }))}
-            className="h-11 w-56 appearance-none rounded-full border-0 bg-surface pl-10 pr-4 text-sm font-medium text-ink shadow-soft ring-1 ring-line focus:ring-2 focus:ring-lavender-400"
+            className="h-10 w-48 appearance-none rounded-full border-0 bg-surface pl-10 pr-4 text-sm font-medium text-ink shadow-soft ring-1 ring-line focus:ring-2 focus:ring-lavender-400"
           >
             {sortLabels.map((option) => (
               <option key={option.value} value={option.value}>
@@ -106,6 +94,21 @@ export function FilterBar({
             ))}
           </select>
         </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+        <span>
+          {total} {total === 1 ? "piece" : "pieces"}
+        </span>
+        {search && (
+          <Link
+            href={buildHref({ search: undefined })}
+            className="inline-flex items-center gap-1.5 rounded-full bg-lavender-100 px-3 py-1 text-xs font-semibold text-lavender-700 transition-colors hover:bg-lavender-200"
+          >
+            “{search}”
+            <X className="h-3 w-3" strokeWidth={2.8} />
+          </Link>
+        )}
       </div>
     </div>
   );
