@@ -368,7 +368,8 @@ export default function ProductForm({ categories, product, onSubmit, submitLabel
               <p className="mt-1 text-xs leading-relaxed text-muted">
                 This product has {product?.variants.length} option
                 {product?.variants.length === 1 ? "" : "s"}, so its total is whatever they add up to.
-                Count them in from the stock badge on the products list.
+                Add units to each one under <span className="font-semibold text-ink">Colours &amp; sizes</span>{" "}
+                below.
               </p>
             </div>
           ) : (
