@@ -1,16 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { PackagePlus, Plus, Trash2 } from "lucide-react";
 import type { ColourPreset, Product } from "../../lib/types";
-import { getColourPalette, updateVariants, type ColourInput, type VariantInput } from "../../lib/api";
+import {
+  adjustStock,
+  getColourPalette,
+  updateVariants,
+  type ColourInput,
+  type VariantInput,
+} from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { FormCard } from "./FormField";
 import { ImageUploader } from "./ImageUploader";
 import { Swatch } from "../product/Swatch";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
-import { cn } from "../../lib/utils";
+import { cn, formatPrice } from "../../lib/utils";
 
 interface ColourRow {
   id?: string;
@@ -129,6 +135,10 @@ export function VariantManager({ product }: { product: Product }) {
   const [cells, setCells] = useState<CellRow[]>(initial.cells);
   const [newSize, setNewSize] = useState("");
 
+  /** Units waiting to be added, keyed by cell. Cleared once they land. */
+  const [topUp, setTopUp] = useState<Record<string, string>>({});
+  const [receiving, setReceiving] = useState<string | null>(null);
+
   /** The shop's palette, offered as one-click adds so names stop drifting. */
   const [palette, setPalette] = useState<ColourPreset[]>([]);
 
@@ -217,6 +227,52 @@ export function VariantManager({ product }: { product: Product }) {
 
   const updateCell = (index: number, patch: Partial<CellRow>) => {
     setCells(cells.map((cell, i) => (i === index ? { ...cell, ...patch } : cell)));
+  };
+
+  const cellName = (cell: CellRow) =>
+    [cell.colourName, cell.label].filter(Boolean).join(" · ") || product.name;
+
+  /**
+   * Puts units on one shelf.
+   *
+   * Sent as a difference through the stock endpoint rather than written as a
+   * total, because that endpoint records why the number moved. Two people
+   * receiving a delivery at once both count, which is not true of a form that
+   * posts where the count should end up.
+   */
+  const receive = async (index: number) => {
+    const cell = cells[index];
+    const delta = Number(topUp[cell.id ?? ""] ?? "");
+
+    if (!token || !cell.id || !Number.isInteger(delta) || delta === 0) return;
+
+    setReceiving(cell.id);
+    try {
+      const { product: updated } = await adjustStock(token, product.id, {
+        delta,
+        // A negative number here is somebody correcting a miscount, not a sale.
+        reason: delta > 0 ? "RECEIVED" : "CORRECTION",
+        variantId: cell.id,
+      });
+
+      const after = (updated.variants ?? []).find((variant) => variant.id === cell.id)?.stock;
+      setCells(cells.map((row, i) => (i === index ? { ...row, stock: after ?? row.stock } : row)));
+      setTopUp({ ...topUp, [cell.id]: "" });
+
+      toast({
+        title: "Stock updated",
+        description: `${cellName(cell)} now shows ${after ?? 0}.`,
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Could not adjust the stock",
+        description: err instanceof Error ? err.message : "Please try again.",
+        tone: "error",
+      });
+    } finally {
+      setReceiving(null);
+    }
   };
 
   const handleSave = async () => {
@@ -459,7 +515,8 @@ export function VariantManager({ product }: { product: Product }) {
             </h3>
             <p className="mt-1 text-xs text-muted">
               Switch off a combination this product does not come in. Leave a price blank to charge the
-              product&rsquo;s own {product.price}.
+              product&rsquo;s own {formatPrice(product.price)}. Type a number beside a row to put units
+              on that shelf.
             </p>
 
             <ul className="mt-3 space-y-2">
@@ -472,8 +529,37 @@ export function VariantManager({ product }: { product: Product }) {
                     {[cell.colourName, cell.label].filter(Boolean).join(" · ")}
                   </span>
 
-                  {cell.stock != null && (
-                    <span className="shrink-0 text-xs font-semibold text-muted">{cell.stock} in stock</span>
+                  {cell.id ? (
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="text-xs font-semibold text-muted">{cell.stock ?? 0} in stock</span>
+                      <input
+                        value={topUp[cell.id] ?? ""}
+                        onChange={(e) => setTopUp({ ...topUp, [cell.id!]: e.target.value })}
+                        onKeyDown={(e) => {
+                          // Enter receives the units rather than submitting the
+                          // page: this sits inside the product form.
+                          if (e.key !== "Enter") return;
+                          e.preventDefault();
+                          void receive(index);
+                        }}
+                        inputMode="numeric"
+                        placeholder="+0"
+                        aria-label={`Units to add to ${cellName(cell)}`}
+                        className="w-16 rounded-xl border border-line-strong bg-white px-2 py-1.5 text-center text-sm font-semibold text-ink focus:border-lavender-400 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void receive(index)}
+                        disabled={receiving === cell.id || !Number(topUp[cell.id] ?? "")}
+                        aria-label={`Add stock to ${cellName(cell)}`}
+                        className="grid h-8 w-8 place-items-center rounded-full bg-mint-100 text-mint-600 transition-colors hover:bg-mint-200 disabled:opacity-40"
+                      >
+                        <PackagePlus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                      </button>
+                    </span>
+                  ) : (
+                    // A cell that has never been saved has no id to stock against.
+                    <span className="shrink-0 text-xs font-semibold text-faint">Save to stock this</span>
                   )}
 
                   <input
