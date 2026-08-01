@@ -47,7 +47,9 @@ export function FilterBar({
     // as a control that had come loose.
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="no-scrollbar -mx-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-1 py-1">
+        {/* Full width on a phone, so the chips are not squeezed into a strip
+            narrower than two of them; the sort wraps underneath instead. */}
+        <div className="no-scrollbar -mx-1 flex w-full min-w-0 items-center gap-2 overflow-x-auto px-1 py-1 sm:w-auto sm:flex-1">
           <Link
             href={buildHref({ categoryId: undefined })}
             className={cn(
