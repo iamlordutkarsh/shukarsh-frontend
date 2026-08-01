@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getCategories, getProducts, type ProductSort } from "../../lib/api";
 import { openGraphFor } from "../../lib/seo";
 import { FilterBar } from "../../components/catalog/FilterBar";
+import { FacetPanel } from "../../components/catalog/FacetPanel";
 import { Pagination } from "../../components/catalog/Pagination";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
 import { RevealGroup, RevealItem } from "../../components/motion/Reveal";
@@ -29,7 +30,29 @@ export const metadata: Metadata = {
 const sortKeys: ProductSort[] = ["newest", "oldest", "price-asc", "price-desc", "name"];
 
 interface ProductsPageProps {
-  searchParams: Promise<{ categoryId?: string; search?: string; page?: string; sort?: string }>;
+  // Filters arrive as `a[fabric]=Cotton`, so the shape is open rather than named.
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/**
+ * The picked filters, read off the URL on the server.
+ *
+ * The same parsing the panel does in the browser, because the first render has
+ * to fetch the already-narrowed catalogue rather than the whole one and then
+ * correct itself.
+ */
+function readFacets(params: Record<string, string | string[] | undefined>): Record<string, string[]> {
+  const selected: Record<string, string[]> = {};
+
+  for (const [key, raw] of Object.entries(params)) {
+    const match = /^a\[([a-z0-9-]+)\]$/.exec(key);
+    if (!match || typeof raw !== "string") continue;
+
+    const values = raw.split(",").map((entry) => entry.trim()).filter(Boolean);
+    if (values.length > 0) selected[match[1]] = values;
+  }
+
+  return selected;
 }
 
 async function Catalog({
@@ -37,17 +60,21 @@ async function Catalog({
   search,
   page,
   sort,
+  facets,
 }: {
   categoryId?: string;
   search?: string;
   page: number;
   sort: ProductSort;
+  facets: Record<string, string[]>;
 }) {
   const [categories, result] = await Promise.all([
     getCategories()
-      .then((data) => data.categories)
+      // Only the departments belong in the chip row: the whole tree flattened
+      // into it would be forty chips, which is a filter nobody scrolls.
+      .then((data) => data.categories.filter((category) => !category.parentId))
       .catch(() => []),
-    getProducts({ categoryId, search, page, sort, limit: 12 }).catch(() => null),
+    getProducts({ categoryId, search, page, sort, facets, limit: 12 }).catch(() => null),
   ]);
 
   if (!result) {
@@ -68,6 +95,10 @@ async function Catalog({
     if (categoryId) params.set("categoryId", categoryId);
     if (search) params.set("search", search);
     if (sort !== "newest") params.set("sort", sort);
+    // Carried through, or page two drops back to the unfiltered catalogue.
+    for (const [key, values] of Object.entries(facets)) {
+      if (values.length > 0) params.set(`a[${key}]`, values.join(","));
+    }
     if (target > 1) params.set("page", target.toString());
     const query = params.toString();
     return query ? `/products?${query}` : "/products";
@@ -82,6 +113,12 @@ async function Catalog({
         search={search}
         total={pagination.total}
       />
+
+      {result.facets.length > 0 && (
+        <div className="mt-6">
+          <FacetPanel facets={result.facets} />
+        </div>
+      )}
 
       <div className="mt-8">
         {products.length === 0 ? (
@@ -115,8 +152,17 @@ async function Catalog({
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams;
-  const page = Math.max(1, Number(params.page) || 1);
-  const sort = sortKeys.includes(params.sort as ProductSort) ? (params.sort as ProductSort) : "newest";
+
+  // A repeated parameter arrives as an array. Nothing here means one twice, so
+  // the first is taken rather than the request being refused over a stray link.
+  const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+
+  const categoryId = one(params.categoryId);
+  const search = one(params.search);
+  const page = Math.max(1, Number(one(params.page)) || 1);
+  const sortParam = one(params.sort);
+  const sort = sortKeys.includes(sortParam as ProductSort) ? (sortParam as ProductSort) : "newest";
+  const facets = readFacets(params);
 
   return (
     <div className="relative pb-20 pt-10">
@@ -136,7 +182,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
         <div className="mt-12">
           <Suspense
-            key={`${params.categoryId ?? ""}-${params.search ?? ""}-${page}-${sort}`}
+            key={`${categoryId ?? ""}-${search ?? ""}-${page}-${sort}-${JSON.stringify(facets)}`}
             fallback={
               <>
                 <div className="space-y-4">
@@ -154,7 +200,13 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               </>
             }
           >
-            <Catalog categoryId={params.categoryId} search={params.search} page={page} sort={sort} />
+            <Catalog
+              categoryId={categoryId}
+              search={search}
+              page={page}
+              sort={sort}
+              facets={facets}
+            />
           </Suspense>
         </div>
       </div>
