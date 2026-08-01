@@ -10,6 +10,7 @@ import {
   initialChoice,
   sellableColours,
   sellableVariants,
+  variantFor,
   variantName,
 } from "../../lib/variants";
 import { staggerParent, fadeUp } from "../../lib/motion";
@@ -46,6 +47,16 @@ export function QuickView({
   const start = initialChoice(product);
   const [colourId, setColourId] = useState<string | null>(start.colourId);
   const [label, setLabel] = useState<string>(start.label);
+
+  /**
+   * A cell with two left must not be entered with eight still in the stepper.
+   *
+   * The size picker this replaced clamped on every change; swapping it for
+   * VariantPicker dropped that, so switching to a smaller shelf left the old
+   * quantity in place and the bag took more than the shelf holds.
+   */
+  const clampQuantity = (stock: number) =>
+    setQuantity((current) => Math.max(1, Math.min(current, Math.max(1, stock))));
 
   const chosen = findVariant(product, colourId, label);
   const colourName = colours.find((colour) => colour.id === chosen?.colourId)?.name ?? null;
@@ -130,8 +141,14 @@ export function QuickView({
                 product={product}
                 colourId={colourId}
                 label={label}
-                onColour={setColourId}
-                onLabel={setLabel}
+                onColour={(next) => {
+                  setColourId(next);
+                  clampQuantity(variantFor(product, next, label).stock);
+                }}
+                onLabel={(next) => {
+                  setLabel(next);
+                  clampQuantity(variantFor(product, colourId, next).stock);
+                }}
               />
             </motion.div>
           )}

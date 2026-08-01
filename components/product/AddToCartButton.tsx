@@ -7,7 +7,7 @@ import { useCart } from "../../lib/cart";
 import { springSnappy } from "../../lib/motion";
 import type { Product } from "../../lib/types";
 import { useUI } from "../../lib/ui-store";
-import { sellableColours, sellableSizes, variantName } from "../../lib/variants";
+import { sellableColours, sellableSizes, variantFor, variantName } from "../../lib/variants";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
 import { QuantityStepper } from "./QuantityStepper";
@@ -36,7 +36,14 @@ export function AddToCartButton({ product }: { product: Product }) {
     (product.colours ?? []).find((colour) => colour.id === variant?.colourId)?.name ?? null;
   const chosenName = variant ? variantName(colourName, variant.label) : null;
 
-  /** A cell with two left must not be entered with five still in the stepper. */
+  /**
+   * A cell with two left must not be entered with five still in the stepper.
+   *
+   * Handed the stock of the cell being moved *to*. Reading `available` here
+   * instead took the value from the render before the change, so switching to a
+   * smaller shelf kept the old shelf's ceiling and let the bag take more than
+   * the new one holds.
+   */
   const clampQuantity = (stock: number) =>
     setQuantity((current) => Math.max(1, Math.min(current, Math.max(1, stock))));
 
@@ -65,11 +72,11 @@ export function AddToCartButton({ product }: { product: Product }) {
         label={label}
         onColour={(next) => {
           setColour(next);
-          clampQuantity(available);
+          clampQuantity(variantFor(product, next, label).stock);
         }}
         onLabel={(next) => {
           setLabel(next);
-          clampQuantity(available);
+          clampQuantity(variantFor(product, colourId, next).stock);
         }}
       />
 
