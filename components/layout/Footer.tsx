@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUp, Camera, Mail, ShieldCheck, Sparkles } from "lucide
 import { useState } from "react";
 import { subscribeToNewsletter } from "../../lib/api";
 import { footerGroups } from "../../lib/nav";
+import { instagramUrl } from "../../lib/shop";
 import { whatsappLink } from "../../lib/support";
 import { WhatsAppIcon } from "../support/WhatsAppIcon";
 import { Reveal } from "../motion/Reveal";
@@ -72,6 +73,7 @@ function NewsletterForm() {
 
 export function Footer() {
   const chat = whatsappLink("Hi Shukarsh!");
+  const instagram = instagramUrl();
 
   return (
     <footer className="relative mt-24 overflow-hidden">
@@ -105,15 +107,17 @@ export function Footer() {
               Small-batch kitchen, clothing and nail finds, chosen for the soft-hearted maximalist.
             </p>
             <div className="flex items-center gap-2">
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noreferrer noopener"
-                aria-label="Shukarsh on Instagram"
-                className="grid h-10 w-10 place-items-center rounded-full bg-surface text-ink-700 shadow-soft transition-all hover:-translate-y-0.5 hover:text-blush-500"
-              >
-                <Camera className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
-              </a>
+              {instagram && (
+                <a
+                  href={instagram}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  aria-label="Shukarsh on Instagram"
+                  className="grid h-10 w-10 place-items-center rounded-full bg-surface text-ink-700 shadow-soft transition-all hover:-translate-y-0.5 hover:text-blush-500"
+                >
+                  <Camera className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.2} />
+                </a>
+              )}
               <a
                 href="mailto:hello@shukarsh.com"
                 aria-label="Email Shukarsh"

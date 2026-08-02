@@ -1,15 +1,21 @@
 import { Camera } from "lucide-react";
 import { RevealGroup, RevealItem } from "../motion/Reveal";
+import { instagramHandle, instagramUrl } from "../../lib/shop";
 import { PastelTile } from "../ui/PastelTile";
 import { SectionHeading } from "../ui/SectionHeading";
 
 const tiles = ["studio-1", "studio-2", "studio-3", "studio-4", "studio-5", "studio-6"];
 
 export function InstagramStrip() {
+  const profile = instagramUrl();
+  // Six tiles inviting a follow, with nowhere to follow to, is worse than no
+  // section at all — so the whole strip goes when there is no account to link.
+  if (!profile) return null;
+
   return (
     <section className="section-shell py-8 sm:py-10">
       <SectionHeading
-        eyebrow="@shukarsh"
+        eyebrow={instagramHandle() ?? undefined}
         title="Come hang out on Instagram"
         description="Behind the scenes, restock alerts and far too many pastel flat lays."
       />
@@ -18,7 +24,7 @@ export function InstagramStrip() {
         {tiles.map((tile) => (
           <RevealItem key={tile}>
             <a
-              href="https://instagram.com"
+              href={profile}
               target="_blank"
               rel="noreferrer noopener"
               aria-label="Open Shukarsh on Instagram"

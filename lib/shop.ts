@@ -25,6 +25,12 @@ export interface ShopDetails {
   email: string;
   /** Optional. Shown only when set. */
   gstin: string;
+  /**
+   * Optional. The handle on its own, no leading @ and no URL — the shop is
+   * printed as `@handle` in one place and linked in another, and storing either
+   * form means building the other back out of it.
+   */
+  instagram: string;
   /** How long between a payment and the parcel leaving, e.g. "1 to 2 working days". */
   dispatchWindow: string;
   /** The grievance officer. For a one-person shop this is the owner. */
@@ -47,6 +53,7 @@ export const SHOP: ShopDetails = {
   // Already published in the site footer, so it is not a secret and not a guess.
   email: "hello@shukarsh.com",
   gstin: "",
+  instagram: "shukarsh_enterprises",
   // Matches the promise already made on every product page and in the delivery
   // policy. Two places claiming different dispatch times is the drift these
   // pages exist to prevent.
@@ -85,6 +92,21 @@ export function missingShopDetails(): string[] {
 
 export function shopIsConfigured(): boolean {
   return missingShopDetails().length === 0;
+}
+
+/** `@handle` for display, or null when no account is published. */
+export function instagramHandle(): string | null {
+  const handle = SHOP.instagram.trim().replace(/^@/, "");
+  return handle ? `@${handle}` : null;
+}
+
+/**
+ * The profile URL, or null. Linking a follow button at instagram.com rather than
+ * at the shop drops the visitor on a login wall, which is worse than no link.
+ */
+export function instagramUrl(): string | null {
+  const handle = SHOP.instagram.trim().replace(/^@/, "");
+  return handle ? `https://instagram.com/${handle}` : null;
 }
 
 /** The address as separate lines, so it can be laid out rather than run together. */
