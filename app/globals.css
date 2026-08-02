@@ -374,6 +374,45 @@
 }
 
 /* ==========================================================================
+   Print: the tax invoice is the only thing anyone prints from this shop.
+   ========================================================================== */
+
+@media print {
+  /* The shell exists to help somebody shop, none of which survives a printer. */
+  header,
+  footer,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff;
+  }
+
+  /* The fixed decorative mesh paints a grey wash over the whole sheet. */
+  body::before {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  /* A line of a table split across two sheets is unreadable on an invoice. */
+  tr,
+  article {
+    break-inside: avoid;
+  }
+}
+
+/* ==========================================================================
    Accessibility: honour reduced motion everywhere, including library motion.
    ========================================================================== */
 

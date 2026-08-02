@@ -5,7 +5,17 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, CreditCard, ExternalLink, MapPin, Package, Star, Truck, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  CreditCard,
+  ExternalLink,
+  MapPin,
+  Package,
+  ScrollText,
+  Star,
+  Truck,
+  XCircle,
+} from "lucide-react";
 import { cancelOrder, getMyReviews, getOrder, trackOrder } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import type { Order, Review, Tracking } from "../../../lib/types";
@@ -215,6 +225,17 @@ export default function OrderDetailPage() {
           <div>
             <h1 className="font-display text-3xl text-ink">Order #{order.id.slice(0, 8)}</h1>
             <p className="mt-1.5 text-sm text-muted">Placed {formatPlacedAt(order.createdAt)}</p>
+            {/* Only once the sale is real. An unpaid order has no invoice to
+                show and rule 46 has nothing to number. */}
+            {order.invoiceNumber && (
+              <Link
+                href={`/orders/${order.id}/invoice`}
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-lavender-700 transition-colors hover:text-lavender-600"
+              >
+                <ScrollText className="h-4 w-4" strokeWidth={2.4} />
+                Tax invoice {order.invoiceNumber}
+              </Link>
+            )}
           </div>
           <div className="flex flex-col items-end gap-1.5">
             <span

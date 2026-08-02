@@ -288,6 +288,24 @@ export function ShippingDrawer({ order, open, onClose, onOrderChange, onShipment
           )}
         </section>
 
+        {/* Deliberately outside the shipping gates below. The bill goes in the
+            box at packing time, which is before a courier has been picked, and
+            Shiprocket's own invoice only exists once an AWB does. */}
+        {order.invoiceNumber && (
+          <a
+            href={`/orders/${order.id}/invoice`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="flex items-center justify-between gap-3 rounded-3xl bg-lavender-50 px-4 py-3.5 text-sm font-semibold text-lavender-700 transition-colors hover:bg-lavender-100"
+          >
+            <span className="flex items-center gap-2">
+              <ScrollText className="h-4 w-4" strokeWidth={2.4} />
+              Print tax invoice
+            </span>
+            <span className="font-mono text-xs">{order.invoiceNumber}</span>
+          </a>
+        )}
+
         {!shippable ? (
           <p className="rounded-3xl bg-peach-100 px-4 py-3.5 text-sm text-peach-400">
             This order has not been paid for yet, so it cannot be shipped.

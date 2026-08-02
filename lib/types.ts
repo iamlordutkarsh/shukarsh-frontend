@@ -276,6 +276,11 @@ export interface Order {
   cgstTotal: number;
   sgstTotal: number;
   igstTotal: number;
+  /** Buyer's state when the order was placed, which GSTR-1 is filed by. */
+  placeOfSupply?: string | null;
+  /** Consecutive serial number on the tax invoice. Null before the sale is real. */
+  invoiceNumber?: string | null;
+  invoicedAt?: string | null;
   customerEmail?: string | null;
   customerName?: string | null;
   customerPhone?: string | null;
