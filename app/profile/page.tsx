@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Heart, LayoutDashboard, LogOut, Mail, Package } from "lucide-react";
+import { ArrowRight, Heart, LayoutDashboard, LogOut, Mail, MapPin, Package } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getMyReviews, getOrders } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -154,6 +154,14 @@ export default function ProfilePage() {
                   My wishlist
                   <ArrowRight className="ml-auto h-3.5 w-3.5 text-faint" strokeWidth={2.4} />
                 </Link>
+                <a
+                  href="#addresses"
+                  className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-semibold text-ink-700 transition-colors hover:bg-lavender-50 hover:text-ink"
+                >
+                  <MapPin className="h-4 w-4 text-lavender-500" strokeWidth={2.4} />
+                  Saved addresses
+                  <ArrowRight className="ml-auto h-3.5 w-3.5 text-faint" strokeWidth={2.4} />
+                </a>
                 {user.role === "ADMIN" && (
                   <Link
                     href="/admin"
