@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Plus, Star, Trash2 } from "lucide-react";
+import { MapPin, Plus, Star, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createAddress,
@@ -49,6 +49,22 @@ function toInput(draft: Draft): SavedAddressInput {
 }
 
 /**
+ * The same rules the server applies, checked here so a wrong number is caught
+ * where it was typed instead of coming back as a failed request.
+ */
+function problemWith(draft: Draft): string | null {
+  if (draft.name.trim().length < 3) return "Enter the full name the parcel is for.";
+  if (!/^[6-9]\d{9}$/.test(draft.phone)) {
+    return "That is not an Indian mobile number — 10 digits starting 6, 7, 8 or 9.";
+  }
+  if (draft.line1.trim().length < 5) return "The address needs a house or flat and a street.";
+  if (!/^[1-9]\d{5}$/.test(draft.zip)) return "A PIN code is 6 digits.";
+  if (draft.city.trim().length < 2) return "Which city?";
+  if (!draft.state) return "Pick a state.";
+  return null;
+}
+
+/**
  * The addresses this customer has kept, and everything worth doing to one.
  *
  * Always on screen for a signed-in customer, empty or not. Hiding it until an
@@ -65,6 +81,7 @@ export function AddressBook() {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(BLANK);
   const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -94,17 +111,27 @@ export function AddressBook() {
 
   const openNew = () => {
     setDraft(BLANK);
+    setProblem("");
     setEditing("new");
   };
 
   const openEdit = (address: SavedAddress) => {
     setDraft(draftFrom(address));
+    setProblem("");
     setEditing(address.id);
   };
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!token) return;
+
+    const wrong = problemWith(draft);
+    if (wrong) {
+      setProblem(wrong);
+      return;
+    }
+
+    setProblem("");
     setSaving(true);
 
     try {
@@ -114,11 +141,9 @@ export function AddressBook() {
       setEditing(null);
       toast({ tone: "success", title: "Address saved" });
     } catch (error) {
-      toast({
-        tone: "error",
-        title: "Could not save",
-        description: error instanceof Error ? error.message : "Please try again.",
-      });
+      // Shown in the form as well as in a toast: a toast above a long page is
+      // easy to miss, and this is the moment somebody needs to read it.
+      setProblem(error instanceof Error ? error.message : "Could not save that address.");
     } finally {
       setSaving(false);
     }
@@ -181,6 +206,16 @@ export function AddressBook() {
 
       {editing !== null && (
         <form onSubmit={save} className="space-y-3 rounded-4xl bg-surface/90 p-5 shadow-soft hairline">
+          {problem && (
+            <p
+              role="alert"
+              className="flex items-start gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-600"
+            >
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.4} />
+              {problem}
+            </p>
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               required
@@ -196,6 +231,8 @@ export function AddressBook() {
               aria-label="Mobile number"
               placeholder="10 digit mobile number"
               inputMode="numeric"
+              pattern="[6-9][0-9]{9}"
+              title="An Indian mobile number: 10 digits starting 6, 7, 8 or 9"
               className={fieldClass}
               value={draft.phone}
               onChange={(event) =>
@@ -226,6 +263,8 @@ export function AddressBook() {
               aria-label="PIN code"
               placeholder="PIN code"
               inputMode="numeric"
+              pattern="[1-9][0-9]{5}"
+              title="A 6 digit Indian PIN code"
               className={fieldClass}
               value={draft.zip}
               onChange={(event) =>
