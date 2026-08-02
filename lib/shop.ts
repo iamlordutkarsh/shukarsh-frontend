@@ -52,7 +52,7 @@ export const SHOP: ShopDetails = {
   supportHours: "Monday to Saturday, 10am to 7pm IST",
   // Already published in the site footer, so it is not a secret and not a guess.
   email: "hello@shukarsh.com",
-  gstin: "",
+  gstin: "09IGMPB9121F2Z9",
   instagram: "shukarsh_enterprises",
   // Matches the promise already made on every product page and in the delivery
   // policy. Two places claiming different dispatch times is the drift these
