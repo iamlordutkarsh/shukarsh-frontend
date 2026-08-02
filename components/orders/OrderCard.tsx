@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight, Star } from "lucide-react";
+import { imageSrc } from "../../lib/images";
 import type { Order, Review } from "../../lib/types";
 import { cn, formatPrice } from "../../lib/utils";
 import { PastelTile } from "../ui/PastelTile";
@@ -30,7 +31,7 @@ function OrderThumbs({ order, muted }: { order: Order; muted: boolean }) {
           style={{ zIndex: shown.length - index }}
         >
           {item.product?.images?.[0] ? (
-            <Image src={item.product.images[0]} alt="" fill sizes="44px" className="object-cover" />
+            <Image src={imageSrc(item.product.images[0])} alt="" fill sizes="44px" className="object-cover" />
           ) : (
             <PastelTile seed={item.productId} />
           )}

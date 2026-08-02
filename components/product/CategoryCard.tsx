@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import { imageSrc } from "../../lib/images";
 import type { Category } from "../../lib/types";
 import { cn } from "../../lib/utils";
 import { PastelTile } from "../ui/PastelTile";
@@ -31,7 +32,7 @@ export function CategoryCard({
       >
         {category.image ? (
           <Image
-            src={category.image}
+            src={imageSrc(category.image)}
             alt={category.name}
             fill
             priority={priority}

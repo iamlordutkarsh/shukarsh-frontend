@@ -13,6 +13,7 @@ import {
   variantFor,
   variantName,
 } from "../../lib/variants";
+import { imageSrc } from "../../lib/images";
 import { staggerParent, fadeUp } from "../../lib/motion";
 import type { Product } from "../../lib/types";
 import { useUI } from "../../lib/ui-store";
@@ -89,7 +90,7 @@ export function QuickView({
         <div className="relative aspect-4/5 bg-lavender-50 sm:aspect-auto sm:min-h-[30rem]">
           {product.images[0] ? (
             <Image
-              src={product.images[0]}
+              src={imageSrc(product.images[0])}
               alt={product.name}
               fill
               sizes="(min-width: 640px) 34vw, 100vw"

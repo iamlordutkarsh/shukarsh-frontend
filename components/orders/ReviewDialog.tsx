@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { saveReview } from "../../lib/api";
+import { imageSrc } from "../../lib/images";
 import type { Review } from "../../lib/types";
 import { StarPicker } from "../product/StarPicker";
 import { PastelTile } from "../ui/PastelTile";
@@ -77,7 +78,7 @@ export function ReviewDialog({
         <div className="flex items-center gap-3.5">
           <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-lavender-50">
             {target.image ? (
-              <Image src={target.image} alt="" fill sizes="56px" className="object-cover" />
+              <Image src={imageSrc(target.image)} alt="" fill sizes="56px" className="object-cover" />
             ) : (
               <PastelTile seed={target.productId} />
             )}

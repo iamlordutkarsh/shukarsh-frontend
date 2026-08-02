@@ -6,6 +6,7 @@ import { Eye, ShoppingBag } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { useState } from "react";
 import { useCart } from "../../lib/cart";
+import { imageSrc } from "../../lib/images";
 import { springSoft } from "../../lib/motion";
 import type { Product } from "../../lib/types";
 import { useUI } from "../../lib/ui-store";
@@ -36,7 +37,7 @@ export function ProductCard({ product, priority = false, className }: ProductCar
   const rotateX = useSpring(useTransform(pointerY, [-0.5, 0.5], [7, -7]), springSoft);
   const rotateY = useSpring(useTransform(pointerX, [-0.5, 0.5], [-7, 7]), springSoft);
 
-  const image = product.images[0];
+  const image = imageSrc(product.images[0]);
   const discount = discountPercent(product.priceFrom ?? product.price, product.comparePrice);
   // Off the options where there are any, so a card cannot disagree with the
   // product page it links to.

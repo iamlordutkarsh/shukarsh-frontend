@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
+import { imageSrc } from "../../lib/images";
 import { easeSoft } from "../../lib/motion";
 import { cn } from "../../lib/utils";
 import { PastelTile } from "../ui/PastelTile";
@@ -51,7 +52,7 @@ export function ProductGallery({
           >
             {current ? (
               <Image
-                src={current}
+                src={imageSrc(current)}
                 alt={name}
                 fill
                 priority
@@ -92,7 +93,7 @@ export function ProductGallery({
                 index === active ? "ring-2 ring-lavender-500 ring-offset-2" : "opacity-70 hover:opacity-100"
               )}
             >
-              <Image src={image} alt="" fill sizes="80px" className="object-cover" />
+              <Image src={imageSrc(image)} alt="" fill sizes="80px" className="object-cover" />
             </button>
           ))}
         </div>

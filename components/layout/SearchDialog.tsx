@@ -7,6 +7,7 @@ import { ArrowRight, Search, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { getProducts } from "../../lib/api";
+import { imageSrc } from "../../lib/images";
 import { easeSoft } from "../../lib/motion";
 import { collections } from "../../lib/nav";
 import type { Product } from "../../lib/types";
@@ -119,7 +120,7 @@ function SearchPanel({ onNavigate }: { onNavigate: () => void }) {
                   >
                     <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-lavender-50">
                       {product.images[0] ? (
-                        <Image src={product.images[0]} alt="" fill sizes="64px" className="object-cover" />
+                        <Image src={imageSrc(product.images[0])} alt="" fill sizes="64px" className="object-cover" />
                       ) : (
                         <PastelTile seed={product.slug} />
                       )}

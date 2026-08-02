@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { cartLineKey, linePrice, lineStock, lineVariantName, toApiItems, useCart } from "../../lib/cart";
 import { ChooseSize } from "../cart/ChooseSize";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
+import { imageSrc } from "../../lib/images";
 import { easeSoft } from "../../lib/motion";
 import { useUI } from "../../lib/ui-store";
 import { formatPrice } from "../../lib/utils";
@@ -130,7 +131,13 @@ export function CartDrawer() {
                     className="relative h-24 w-20 shrink-0 overflow-hidden rounded-2xl bg-lavender-50"
                   >
                     {product.images[0] ? (
-                      <Image src={product.images[0]} alt={product.name} fill sizes="80px" className="object-cover" />
+                      <Image
+                        src={imageSrc(product.images[0])}
+                        alt={product.name}
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                      />
                     ) : (
                       <PastelTile seed={product.slug} />
                     )}
