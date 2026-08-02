@@ -68,6 +68,18 @@ export const collections: NavCollection[] = [
   },
 ];
 
+const bySlug = new Map(collections.map((collection) => [collection.slug, collection]));
+
+/**
+ * The bundled art for a category the API knows about but has no photo for.
+ * A seeded catalogue ships every category with `image: null`, which otherwise
+ * leaves the storefront's main collection grid as three bare gradients.
+ */
+export function collectionArt(slug: string): { image: string; imageFocus: string } | null {
+  const collection = bySlug.get(slug);
+  return collection ? { image: collection.image, imageFocus: collection.imageFocus } : null;
+}
+
 export const primaryNav: NavHighlight[] = [
   { label: "New in", href: "/products" },
   ...collections.map((collection) => ({

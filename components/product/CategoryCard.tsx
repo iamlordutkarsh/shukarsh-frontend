@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { imageSrc } from "../../lib/images";
+import { collectionArt } from "../../lib/nav";
 import type { Category } from "../../lib/types";
 import { cn } from "../../lib/utils";
 import { PastelTile } from "../ui/PastelTile";
@@ -19,6 +20,11 @@ export function CategoryCard({
   priority?: boolean;
 }) {
   const reduced = useReducedMotion();
+  // A category the API has no photo for still gets the bundled art if it is one
+  // of the three the shop is built around; only the rest fall back to a tile.
+  const art = collectionArt(category.slug);
+  const image = imageSrc(category.image) ?? art?.image ?? null;
+  const focus = category.image ? "object-center" : (art?.imageFocus ?? "object-center");
 
   return (
     <motion.div
@@ -30,14 +36,17 @@ export function CategoryCard({
         href={`/categories/${category.slug}`}
         className="relative flex h-full min-h-72 flex-col justify-end overflow-hidden rounded-5xl shadow-soft transition-shadow duration-500 group-hover:shadow-lift focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lavender-500"
       >
-        {category.image ? (
+        {image ? (
           <Image
-            src={imageSrc(category.image)}
+            src={image}
             alt={category.name}
             fill
             priority={priority}
             sizes="(min-width: 1024px) 32vw, (min-width: 640px) 48vw, 92vw"
-            className="object-cover transition-transform duration-[1100ms] ease-[var(--ease-soft)] group-hover:scale-[1.09]"
+            className={cn(
+              "object-cover transition-transform duration-[1100ms] ease-[var(--ease-soft)] group-hover:scale-[1.09]",
+              focus
+            )}
           />
         ) : (
           <PastelTile
