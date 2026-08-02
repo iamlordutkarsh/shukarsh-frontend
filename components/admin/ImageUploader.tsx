@@ -131,7 +131,7 @@ export function ImageUploader({ value, onChange, maxFiles = 8 }: ImageUploaderPr
         <div>
           <p className="text-sm font-semibold text-ink">Drop images here</p>
           <p className="mt-1 text-xs text-muted">
-            JPEG, PNG, WebP or AVIF up to 5 MB each. {remaining} slot{remaining === 1 ? "" : "s"} left.
+            JPEG, PNG, WebP or AVIF up to 10 MB each. {remaining} slot{remaining === 1 ? "" : "s"} left.
           </p>
         </div>
 
@@ -150,7 +150,10 @@ export function ImageUploader({ value, onChange, maxFiles = 8 }: ImageUploaderPr
           ref={inputRef}
           id={`${uid}-files`}
           type="file"
-          accept="image/*"
+          // Naming the formats rather than image/* makes iOS hand over a JPEG
+          // copy of a HEIC shot instead of the HEIC itself, which the server
+          // rejects and no browser can display.
+          accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
           multiple
           className="sr-only"
           onChange={(event) => void handleFiles(event.target.files)}
