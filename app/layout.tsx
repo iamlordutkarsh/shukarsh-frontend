@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans, Quicksand } from "next/font/google";
 import "./globals.css";
 import { AnnouncementBar } from "../components/layout/AnnouncementBar";
+import { ConsentBanner } from "../components/consent/ConsentBanner";
 import { JsonLd } from "../components/seo/JsonLd";
 import { CartDrawer } from "../components/layout/CartDrawer";
 import { Footer } from "../components/layout/Footer";
@@ -98,6 +99,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   <CartDrawer />
                   <MobileMenu />
                   <SupportButton />
+                  <ConsentBanner />
                 </ToastProvider>
               </CartProvider>
             </WishlistProvider>

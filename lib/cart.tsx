@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { track } from "./analytics";
 import { createLocalStore } from "./local-store";
 import type { Product } from "./types";
 
@@ -124,6 +125,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         );
       }
       return [...current, line];
+    });
+
+    // Here rather than on the button, so a quick view, a product page and the
+    // recovered-bag flow all report it without each remembering to.
+    track("AddToCart", {
+      content_ids: [product.id],
+      content_name: product.name,
+      value: linePrice(line) * quantity,
+      currency: "INR",
     });
   }, []);
 

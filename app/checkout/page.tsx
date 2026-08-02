@@ -16,6 +16,7 @@ import {
   type OrderQuote,
   type PaymentMethod,
 } from "../../lib/api";
+import { track } from "../../lib/analytics";
 import { useAuth } from "../../lib/auth";
 import { cartLineKey, lineVariantName, toApiItems, useCart } from "../../lib/cart";
 import { INDIAN_STATES, ORDER_PLACED_KEY, canonicalState } from "../../lib/constants";
@@ -402,6 +403,9 @@ export default function CheckoutPage() {
       if (data.paymentMethod === "COD") {
         clearCart();
         sessionStorage.setItem(ORDER_PLACED_KEY, data.orderId);
+        // Fired here rather than on the success page, which is only told the
+        // order id and so could not report what the order was worth.
+        track("Purchase", { value: displayTotal, currency: "INR" });
         router.push("/checkout/success");
         return;
       }
@@ -430,6 +434,7 @@ export default function CheckoutPage() {
             });
             clearCart();
             sessionStorage.setItem(ORDER_PLACED_KEY, verified.orderId);
+            track("Purchase", { value: displayTotal, currency: "INR" });
             router.push("/checkout/success");
           } catch (verifyError) {
             setConfirming(false);

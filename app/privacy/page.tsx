@@ -1,12 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bullets, Para, PolicyPage, Section } from "../../components/legal/PolicyPage";
+import { trackingConfigured } from "../../lib/analytics";
 import { openGraphFor } from "../../lib/seo";
 import { SHOP, detail } from "../../lib/shop";
 
 const TITLE = "Privacy";
-const INTRO =
-  "What we collect, why we need it, and who else sees it. We do not sell your details and we do not run advertising trackers.";
+
+/**
+ * This page describes whatever is actually switched on.
+ *
+ * It promised no trackers at all, which was true and worth keeping. Rather than
+ * rewrite that promise into something vaguer to leave room for a pixel, both
+ * versions are written out and the same switch that loads the pixel picks
+ * between them — so the page cannot claim there is no tracking on a build that
+ * has it, and does not warn about tracking on a build that does not.
+ */
+const TRACKS = trackingConfigured();
+
+const INTRO = TRACKS
+  ? "What we collect, why we need it, and who else sees it. We do not sell your details, and the one advertising tracker we use stays off unless you accept it."
+  : "What we collect, why we need it, and who else sees it. We do not sell your details and we do not run advertising trackers.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -82,12 +96,32 @@ export default function PrivacyPage() {
         </Para>
       </Section>
 
-      <Section title="What we do not do">
-        <Para>
-          There are no advertising pixels, no analytics trackers and no third-party cookies on this
-          site. We are not following you around the internet, and there is nothing here to opt out of
-          because we never turned it on.
-        </Para>
+      <Section title={TRACKS ? "Advertising and cookies" : "What we do not do"}>
+        {TRACKS ? (
+          <>
+            <Para>
+              We use one advertising tracker: Meta&apos;s pixel, which tells us which of our
+              Instagram and Facebook posts brought someone to the shop, and lets us show our own ads
+              to people who have visited before. It sets third-party cookies belonging to Meta.
+            </Para>
+            <Para>
+              It does not run until you accept it. We ask once, on your first visit, and nothing is
+              loaded or sent to Meta before you answer — declining is a single click and the shop
+              behaves exactly the same. To change your mind later, clear this site&apos;s data in
+              your browser and we will ask again.
+            </Para>
+            <Para>
+              We never send Meta your name, address, phone number or what you bought. There are no
+              other analytics trackers on this site.
+            </Para>
+          </>
+        ) : (
+          <Para>
+            There are no advertising pixels, no analytics trackers and no third-party cookies on this
+            site. We are not following you around the internet, and there is nothing here to opt out
+            of because we never turned it on.
+          </Para>
+        )}
         <Para>
           Your bag is kept in your own browser rather than on our servers, which is why it survives a
           refresh but does not follow you to another device. Signing in stores a token in your browser
