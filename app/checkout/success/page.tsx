@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { fadeUp, staggerParent } from "../../../lib/motion";
 import { ORDER_PLACED_KEY } from "../../../lib/constants";
+import { SHOP } from "../../../lib/shop";
 import { useHydrated } from "../../../lib/use-hydrated";
 import { FloatingDecor } from "../../../components/motion/FloatingDecor";
 import { ButtonLink } from "../../../components/ui/Button";
@@ -80,7 +81,7 @@ export default function CheckoutSuccessPage() {
 
           <motion.p variants={fadeUp} className="mt-6 flex items-center justify-center gap-1.5 text-xs text-faint">
             <Mail className="h-3.5 w-3.5" strokeWidth={2.4} />
-            Questions? hello@shukarsh.com
+            Questions? {SHOP.email}
           </motion.p>
         </motion.div>
       </div>

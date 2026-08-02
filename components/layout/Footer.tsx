@@ -5,7 +5,7 @@ import { ArrowRight, ArrowUp, Camera, Mail, ShieldCheck, Sparkles } from "lucide
 import { useState } from "react";
 import { subscribeToNewsletter } from "../../lib/api";
 import { footerGroups } from "../../lib/nav";
-import { instagramUrl } from "../../lib/shop";
+import { SHOP, instagramUrl } from "../../lib/shop";
 import { whatsappLink } from "../../lib/support";
 import { WhatsAppIcon } from "../support/WhatsAppIcon";
 import { Reveal } from "../motion/Reveal";
@@ -119,7 +119,7 @@ export function Footer() {
                 </a>
               )}
               <a
-                href="mailto:hello@shukarsh.com"
+                href={`mailto:${SHOP.email}`}
                 aria-label="Email Shukarsh"
                 className="grid h-10 w-10 place-items-center rounded-full bg-surface text-ink-700 shadow-soft transition-all hover:-translate-y-0.5 hover:text-lavender-600"
               >
