@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MousePointerClick, PackageCheck, ShieldCheck, Sparkles, Truck } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -65,24 +66,28 @@ export function Hero() {
 
         <div className="relative">
           <div className="grid grid-cols-2 gap-4 sm:gap-5">
-            <Parallax distance={-26} className="col-span-1">
-              <CollectionTile index={0} className="min-h-56 sm:min-h-72" />
+            {/* The whole collage is above the fold and one of these is the LCP
+                element, so none of it waits on the lazy observer. */}
+            <Parallax distance={-18} className="col-span-1">
+              <CollectionTile index={0} priority className="min-h-64 sm:min-h-[28rem]" />
             </Parallax>
             <div className="space-y-4 sm:space-y-5">
-              <Parallax distance={22}>
-                <CollectionTile index={1} className="min-h-32 sm:min-h-40" />
+              <Parallax distance={14}>
+                <CollectionTile index={1} priority className="min-h-36 sm:min-h-[13.5rem]" />
               </Parallax>
-              <Parallax distance={38}>
-                <CollectionTile index={2} className="min-h-32 sm:min-h-40" />
+              <Parallax distance={26}>
+                <CollectionTile index={2} priority className="min-h-36 sm:min-h-[13.5rem]" />
               </Parallax>
             </div>
           </div>
 
+          {/* Parked over the lead tile's empty top-left corner: the only spot in
+              the collage with no photo subject and no label to collide with. */}
           <motion.div
             aria-hidden
             animate={reduced ? undefined : { rotate: 360 }}
             transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
-            className="absolute -left-6 bottom-10 hidden h-24 w-24 place-items-center rounded-full bg-surface/90 shadow-soft sm:grid"
+            className="absolute -left-7 top-4 hidden h-24 w-24 place-items-center rounded-full bg-surface/90 shadow-soft backdrop-blur-sm sm:grid"
           >
             <svg viewBox="0 0 100 100" className="h-full w-full">
               <defs>
@@ -111,7 +116,15 @@ export function Hero() {
   );
 }
 
-function CollectionTile({ index, className }: { index: number; className?: string }) {
+function CollectionTile({
+  index,
+  className,
+  priority = false,
+}: {
+  index: number;
+  className?: string;
+  priority?: boolean;
+}) {
   const collection = collections[index];
   if (!collection) return null;
 
@@ -120,7 +133,26 @@ function CollectionTile({ index, className }: { index: number; className?: strin
       href={`/categories/${collection.slug}`}
       className={`group relative flex flex-col justify-end overflow-hidden rounded-5xl p-5 shadow-soft transition-shadow duration-500 hover:shadow-lift ${className ?? ""}`}
     >
-      <PastelTile seed={collection.slug} className="transition-transform duration-[900ms] group-hover:scale-110" />
+      {collection.image ? (
+        <Image
+          src={collection.image}
+          alt=""
+          fill
+          priority={priority}
+          sizes="(min-width: 1024px) 24vw, (min-width: 640px) 32vw, 46vw"
+          className={`object-cover ${collection.imageFocus} transition-transform duration-[900ms] ease-[var(--ease-soft)] group-hover:scale-110`}
+        />
+      ) : (
+        <PastelTile seed={collection.slug} className="transition-transform duration-[900ms] group-hover:scale-110" />
+      )}
+
+      {/* Light scrim rather than the usual dark one: the art is near-white, so
+          ink text on a frosted wash keeps contrast without muddying the pastel. */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-white/95 via-white/60 to-transparent"
+      />
+
       <span className="relative">
         <span className="block text-[0.625rem] font-bold uppercase tracking-[0.2em] text-ink-700/80">
           {collection.tagline}

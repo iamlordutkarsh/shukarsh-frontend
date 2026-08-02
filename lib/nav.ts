@@ -13,6 +13,13 @@ export interface NavCollection {
   slug: string;
   tagline: string;
   blurb: string;
+  /** Local hero/card art. Bundled so it renders before the API is warm. */
+  image: string;
+  /**
+   * Tailwind object-position for `image`. The art is composed off-centre, so a
+   * default centre crop drops the subject once a card is squarer than the file.
+   */
+  imageFocus: string;
   highlights: NavHighlight[];
 }
 
@@ -22,6 +29,8 @@ export const collections: NavCollection[] = [
     slug: "kitchen",
     tagline: "Cook cute",
     blurb: "Pastel cookware, storage and little helpers that make the kitchen feel like a hug.",
+    image: "/categories/kitchen.webp",
+    imageFocus: "object-top",
     highlights: [
       { label: "Cookware", href: "/products?search=pan" },
       { label: "Storage", href: "/products?search=storage" },
@@ -34,6 +43,8 @@ export const collections: NavCollection[] = [
     slug: "clothing",
     tagline: "Soft silhouettes",
     blurb: "Everyday pieces in creamy neutrals and sugared pastels, cut to actually be comfy.",
+    image: "/categories/clothing.webp",
+    imageFocus: "object-right",
     highlights: [
       { label: "Tops", href: "/products?search=top" },
       { label: "Dresses", href: "/products?search=dress" },
@@ -46,6 +57,8 @@ export const collections: NavCollection[] = [
     slug: "artificial-nails",
     tagline: "Press-on magic",
     blurb: "Salon-grade press-on sets, glitters and chromes ready in five minutes flat.",
+    image: "/categories/artificial-nails.webp",
+    imageFocus: "object-right",
     highlights: [
       { label: "Press-on sets", href: "/products?search=press" },
       { label: "French tips", href: "/products?search=french" },

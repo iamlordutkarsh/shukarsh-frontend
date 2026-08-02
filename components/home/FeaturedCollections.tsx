@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { getCategories } from "../../lib/api";
@@ -24,13 +25,30 @@ function Shell({ children }: { children: React.ReactNode }) {
 function StaticGrid() {
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      {staticCollections.map((collection) => (
+      {staticCollections.map((collection, index) => (
         <Link
           key={collection.slug}
           href={`/categories/${collection.slug}`}
           className="group relative flex min-h-72 flex-col justify-end overflow-hidden rounded-5xl p-6 shadow-soft"
         >
-          <PastelTile seed={collection.slug} className="transition-transform duration-700 group-hover:scale-105" />
+          {collection.image ? (
+            <Image
+              src={collection.image}
+              alt=""
+              fill
+              priority={index === 0}
+              sizes="(min-width: 1024px) 32vw, (min-width: 640px) 48vw, 92vw"
+              className={`object-cover ${collection.imageFocus} transition-transform duration-700 ease-[var(--ease-soft)] group-hover:scale-105`}
+            />
+          ) : (
+            <PastelTile seed={collection.slug} className="transition-transform duration-700 group-hover:scale-105" />
+          )}
+
+          <span
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-white/95 via-white/70 to-transparent"
+          />
+
           <span className="relative">
             <span className="block font-display text-2xl text-ink">{collection.label}</span>
             <span className="mt-1 block max-w-xs text-sm leading-relaxed text-ink-700">{collection.blurb}</span>
