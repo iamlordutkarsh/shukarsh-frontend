@@ -7,6 +7,7 @@ import { BadgePercent, CreditCard, Lock, MapPin, ShoppingBag, Truck, TriangleAle
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  createAddress,
   createRazorpayOrder,
   getDeliveryQuote,
   getOrderQuote,
@@ -15,9 +16,11 @@ import {
   type DeliveryQuote,
   type OrderQuote,
   type PaymentMethod,
+  type SavedAddress,
 } from "../../lib/api";
 import { track } from "../../lib/analytics";
 import { useAuth } from "../../lib/auth";
+import { SavedAddresses, addressToFields } from "../../components/checkout/SavedAddresses";
 import { cartLineKey, lineVariantName, toApiItems, useCart } from "../../lib/cart";
 import { INDIAN_STATES, ORDER_PLACED_KEY, canonicalState } from "../../lib/constants";
 import { deliveryFor, useDeliveryPolicy } from "../../lib/delivery";
@@ -146,6 +149,10 @@ export default function CheckoutPage() {
     zip: "",
     email: user?.email || "",
   });
+
+  /** Which saved address is in the form, or null for one being typed fresh. */
+  const [addressId, setAddressId] = useState<string | null>(null);
+  const [saveAddress, setSaveAddress] = useState(true);
 
   const [quote, setQuote] = useState<{ key: string; data: DeliveryQuote | null; error: string } | null>(null);
 
@@ -398,6 +405,23 @@ export default function CheckoutPage() {
         token || undefined
       );
 
+      // Kept once the order exists, so a checkout that never got that far does
+      // not leave a half-typed address in the book. Never awaited and never
+      // surfaced: this is a convenience, and it must not be able to fail an
+      // order that has already been placed.
+      if (token && addressId === null && saveAddress) {
+        void createAddress(token, {
+          name: form.name,
+          phone: form.phone,
+          line1: form.line1,
+          line2: form.line2 || null,
+          city: form.city,
+          state: form.state,
+          zip: form.zip,
+          isDefault: false,
+        }).catch(() => {});
+      }
+
       // Nothing to pay for now, so the order is already placed and the only
       // thing left is to say so.
       if (data.paymentMethod === "COD") {
@@ -533,6 +557,25 @@ export default function CheckoutPage() {
               >
                 <h2 className="font-display text-xl text-ink">Where should it go?</h2>
 
+                <SavedAddresses
+                  selectedId={addressId}
+                  onSelect={(address: SavedAddress) => {
+                    setAddressId(address.id);
+                    setForm((current) => ({ ...current, ...addressToFields(address) }));
+                  }}
+                  onUseNew={() => {
+                    setAddressId(null);
+                    setForm((current) => ({
+                      ...current,
+                      line1: "",
+                      line2: "",
+                      city: "",
+                      state: "",
+                      zip: "",
+                    }));
+                  }}
+                />
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     required
@@ -624,6 +667,20 @@ export default function CheckoutPage() {
                   value={form.email}
                   onChange={(event) => setForm({ ...form, email: event.target.value })}
                 />
+
+                {/* Only for a signed-in customer typing a new one. A guest has
+                    nowhere to save it to, and an address picked from the book is
+                    already saved. */}
+                {token && addressId === null && (
+                  <label className="flex items-center gap-2.5 text-[0.8125rem] text-muted">
+                    <input
+                      type="checkbox"
+                      checked={saveAddress}
+                      onChange={(event) => setSaveAddress(event.target.checked)}
+                    />
+                    Save this address for next time
+                  </label>
+                )}
               </motion.div>
 
               <motion.section

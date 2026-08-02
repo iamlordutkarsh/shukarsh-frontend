@@ -903,6 +903,51 @@ export async function getUploadConfig(token: string): Promise<{ enabled: boolean
   return withToken<{ enabled: boolean; maxFileSize: number; maxFiles: number }>("/uploads/config", token);
 }
 
+export interface SavedAddress {
+  id: string;
+  name: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  isDefault: boolean;
+}
+
+/** Everything the form collects. The id is the server's, so it is not here. */
+export type SavedAddressInput = Omit<SavedAddress, "id" | "country"> & { country?: string };
+
+export async function getAddresses(token: string): Promise<{ addresses: SavedAddress[] }> {
+  return withToken<{ addresses: SavedAddress[] }>("/addresses", token, { cache: "no-store" });
+}
+
+export async function createAddress(
+  token: string,
+  address: SavedAddressInput
+): Promise<{ address: SavedAddress }> {
+  return withToken<{ address: SavedAddress }>("/addresses", token, {
+    method: "POST",
+    body: JSON.stringify(address),
+  });
+}
+
+export async function updateAddress(
+  token: string,
+  id: string,
+  address: SavedAddressInput
+): Promise<{ address: SavedAddress }> {
+  return withToken<{ address: SavedAddress }>(`/addresses/${id}`, token, {
+    method: "PUT",
+    body: JSON.stringify(address),
+  });
+}
+
+export async function deleteAddress(token: string, id: string): Promise<{ deleted: boolean }> {
+  return withToken<{ deleted: boolean }>(`/addresses/${id}`, token, { method: "DELETE" });
+}
+
 export async function getWishlist(token: string): Promise<{ products: Product[] }> {
   return withToken<{ products: Product[] }>("/wishlist", token, { cache: "no-store" });
 }

@@ -10,6 +10,7 @@ import type { Order, Review } from "../../lib/types";
 import { displayName, initialsOf } from "../../lib/utils";
 import { useWishlist } from "../../lib/wishlist";
 import { FloatingDecor } from "../../components/motion/FloatingDecor";
+import { AddressBook } from "../../components/account/AddressBook";
 import { ChangePassword } from "../../components/account/ChangePassword";
 import { OrderCard } from "../../components/orders/OrderCard";
 import { ReviewDialog } from "../../components/orders/ReviewDialog";
@@ -174,7 +175,10 @@ export default function ProfilePage() {
             </div>
           </aside>
 
-          <section id="orders" className="space-y-4 scroll-mt-28">
+          <div className="space-y-10">
+            <AddressBook />
+
+            <section id="orders" className="space-y-4 scroll-mt-28">
             <h2 className="flex items-center gap-2 font-display text-2xl text-ink">
               <Package className="h-5 w-5 text-lavender-500" strokeWidth={2.3} />
               Order history
@@ -217,7 +221,8 @@ export default function ProfilePage() {
                 ))}
               </div>
             )}
-          </section>
+            </section>
+          </div>
         </div>
       </div>
 
