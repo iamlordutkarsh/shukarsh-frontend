@@ -10,13 +10,13 @@ import { SectionHeading } from "../ui/SectionHeading";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <section className="section-shell py-14">
+    <section className="section-shell py-8 sm:py-10">
       <SectionHeading
         eyebrow="Collections"
         title="Three little worlds to wander"
         description="Kitchen, clothing and nails, each curated so everything plays nicely together."
       />
-      <div className="mt-10">{children}</div>
+      <div className="mt-8">{children}</div>
     </section>
   );
 }

@@ -8,7 +8,7 @@ const perks = ["Ready in five minutes", "Reusable up to 10 wears", "20+ shapes a
 
 export function PromoBanner() {
   return (
-    <section className="section-shell py-14">
+    <section className="section-shell py-8 sm:py-10">
       <Reveal variant="scale">
         <div className="relative overflow-hidden rounded-5xl bg-gradient-to-br from-lavender-500 via-lavender-500 to-blush-400 p-8 text-white shadow-lift sm:p-12">
           <div

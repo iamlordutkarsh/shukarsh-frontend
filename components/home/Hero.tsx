@@ -21,7 +21,7 @@ export function Hero() {
   const reduced = useReducedMotion();
 
   return (
-    <section className="relative overflow-hidden pb-10 pt-10 sm:pt-16">
+    <section className="relative overflow-hidden pb-8 pt-10 sm:pt-14">
       <FloatingDecor />
 
       <div className="section-shell relative grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
@@ -101,7 +101,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="section-shell relative mt-14 hidden justify-center sm:flex">
+      <div className="section-shell relative mt-9 hidden justify-center sm:flex">
         <motion.span
           aria-hidden
           animate={reduced ? undefined : { y: [0, 8, 0] }}

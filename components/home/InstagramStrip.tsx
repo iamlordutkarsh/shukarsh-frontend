@@ -7,14 +7,14 @@ const tiles = ["studio-1", "studio-2", "studio-3", "studio-4", "studio-5", "stud
 
 export function InstagramStrip() {
   return (
-    <section className="section-shell py-14">
+    <section className="section-shell py-8 sm:py-10">
       <SectionHeading
         eyebrow="@shukarsh"
         title="Come hang out on Instagram"
         description="Behind the scenes, restock alerts and far too many pastel flat lays."
       />
 
-      <RevealGroup className="mt-10 grid grid-cols-3 gap-3 sm:gap-4 lg:grid-cols-6" stagger={0.05}>
+      <RevealGroup className="mt-8 grid grid-cols-3 gap-3 sm:gap-4 lg:grid-cols-6" stagger={0.05}>
         {tiles.map((tile) => (
           <RevealItem key={tile}>
             <a

@@ -30,7 +30,7 @@ const props = [
 
 export function ValueProps() {
   return (
-    <section className="section-shell py-14">
+    <section className="section-shell py-8 sm:py-10">
       <RevealGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" stagger={0.07}>
         {props.map(({ icon: Icon, title, copy, tone }) => (
           <RevealItem key={title}>

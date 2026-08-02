@@ -5,7 +5,7 @@ import { SectionHeading } from "../ui/SectionHeading";
 
 export function Testimonials() {
   return (
-    <section className="relative py-14">
+    <section className="relative py-8 sm:py-10">
       <div className="section-shell">
         <SectionHeading
           eyebrow="Kind words"
@@ -13,7 +13,7 @@ export function Testimonials() {
           description="A few notes from people who let us into their kitchens, wardrobes and manicures."
         />
 
-        <RevealGroup className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" stagger={0.08}>
+        <RevealGroup className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4" stagger={0.08}>
           {testimonials.map((testimonial) => (
             <RevealItem key={testimonial.name} className="h-full">
               <figure className="flex h-full flex-col gap-4 rounded-4xl bg-surface/85 p-6 shadow-soft transition-transform duration-500 ease-[var(--ease-soft)] hover:-translate-y-1.5 hairline">

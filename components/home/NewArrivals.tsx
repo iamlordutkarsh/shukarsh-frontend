@@ -13,7 +13,7 @@ export async function NewArrivals() {
     .catch(() => []);
 
   return (
-    <section className="section-shell py-14">
+    <section className="section-shell py-8 sm:py-10">
       <SectionHeading
         align="left"
         eyebrow="Fresh in"
@@ -27,7 +27,7 @@ export async function NewArrivals() {
         }
       />
 
-      <div className="mt-10">
+      <div className="mt-8">
         {products.length === 0 ? (
           <EmptyState
             art={<OopsArt />}
