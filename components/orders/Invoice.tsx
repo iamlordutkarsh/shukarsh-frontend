@@ -100,7 +100,23 @@ export function Invoice({ orderId }: { orderId: string }) {
 
   const address = order.shippingAddress ?? {};
   const interState = order.igstTotal > 0;
-  const taxableTotal = order.items.reduce((sum, item) => sum + item.taxableAmount, 0);
+
+  /**
+   * Two blocks, each of which adds up to the same total from a different side.
+   *
+   * The charges are what was agreed: MRP, less the discount, plus delivery and
+   * any cash collection fee. The GST block is that same total split into what
+   * the shop keeps and what the government gets, because these prices are
+   * tax-inclusive and nothing is being added on top.
+   *
+   * They cannot be mixed. `taxableAmount` on a line is already net of the
+   * discount, so listing it beside a discount row subtracts the coupon twice and
+   * the column comes up short by exactly that amount — on the one document where
+   * the arithmetic has to survive somebody checking it.
+   */
+  const taxTotal = order.cgstTotal + order.sgstTotal + order.igstTotal;
+  const taxableTotal = order.totalAmount - taxTotal;
+  const discounted = order.discountTotal > 0;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 print:max-w-none print:px-0 print:py-0">
@@ -177,15 +193,21 @@ export function Invoice({ orderId }: { orderId: string }) {
               <th className="py-2.5 font-bold">Description</th>
               <th className="py-2.5 font-bold">HSN</th>
               <th className="py-2.5 text-right font-bold">Qty</th>
+              {discounted && <th className="py-2.5 text-right font-bold">MRP</th>}
               <th className="py-2.5 text-right font-bold">Taxable</th>
               <th className="py-2.5 text-right font-bold">Rate</th>
               <th className="py-2.5 text-right font-bold">{interState ? "IGST" : "CGST + SGST"}</th>
-              <th className="py-2.5 text-right font-bold">Total</th>
+              <th className="py-2.5 text-right font-bold">Charged</th>
             </tr>
           </thead>
           <tbody>
             {order.items.map((item) => {
               const chosen = [item.variantColour, item.variantLabel].filter(Boolean).join(" · ");
+              // Taxable and tax are both net of the line's share of the coupon,
+              // so this is what was actually charged for it. The MRP column
+              // beside it is what it would have cost without the code, and the
+              // two only differ on a discounted order.
+              const charged = item.taxableAmount + item.taxAmount;
               return (
                 <tr key={item.id} className="border-b border-line/60 align-top">
                   <td className="py-2.5">
@@ -194,6 +216,11 @@ export function Invoice({ orderId }: { orderId: string }) {
                   </td>
                   <td className="py-2.5 font-mono text-xs">{item.product?.hsn ?? "—"}</td>
                   <td className="py-2.5 text-right">{item.quantity}</td>
+                  {discounted && (
+                    <td className="py-2.5 text-right text-muted">
+                      {formatPrice(item.price * item.quantity, true)}
+                    </td>
+                  )}
                   <td className="py-2.5 text-right">{formatPrice(item.taxableAmount, true)}</td>
                   <td className="py-2.5 text-right">{item.gstRate}%</td>
                   <td className="py-2.5 text-right">
@@ -201,9 +228,7 @@ export function Invoice({ orderId }: { orderId: string }) {
                       ? formatPrice(item.taxAmount, true)
                       : `${formatPrice(item.taxAmount / 2, true)} × 2`}
                   </td>
-                  <td className="py-2.5 text-right font-semibold">
-                    {formatPrice(item.price * item.quantity, true)}
-                  </td>
+                  <td className="py-2.5 text-right font-semibold">{formatPrice(charged, true)}</td>
                 </tr>
               );
             })}
@@ -212,15 +237,7 @@ export function Invoice({ orderId }: { orderId: string }) {
 
         <section className="mt-5 flex justify-end">
           <dl className="w-full max-w-xs space-y-1.5">
-            <Row label="Taxable value" value={formatPrice(taxableTotal, true)} />
-            {interState ? (
-              <Row label="IGST" value={formatPrice(order.igstTotal, true)} />
-            ) : (
-              <>
-                <Row label="CGST" value={formatPrice(order.cgstTotal, true)} />
-                <Row label="SGST" value={formatPrice(order.sgstTotal, true)} />
-              </>
-            )}
+            <Row label="Items" value={formatPrice(order.itemsTotal, true)} />
             {order.discountTotal > 0 && (
               <Row
                 label={`Discount${order.couponCode ? ` (${order.couponCode})` : ""}`}
@@ -232,6 +249,21 @@ export function Invoice({ orderId }: { orderId: string }) {
             <div className="flex items-baseline justify-between border-t border-line pt-2 text-base font-bold">
               <dt>Total</dt>
               <dd>{formatPrice(order.totalAmount, true)}</dd>
+            </div>
+
+            <div className="!mt-3 space-y-1.5 border-t border-line pt-2.5">
+              <p className="text-[0.6875rem] font-bold uppercase tracking-[0.16em] text-muted">
+                GST included in the total
+              </p>
+              <Row label="Taxable value" value={formatPrice(taxableTotal, true)} />
+              {interState ? (
+                <Row label="IGST" value={formatPrice(order.igstTotal, true)} />
+              ) : (
+                <>
+                  <Row label="CGST" value={formatPrice(order.cgstTotal, true)} />
+                  <Row label="SGST" value={formatPrice(order.sgstTotal, true)} />
+                </>
+              )}
             </div>
           </dl>
         </section>
