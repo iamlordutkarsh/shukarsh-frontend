@@ -534,9 +534,29 @@ export async function deleteCategory(token: string, id: string): Promise<void> {
   });
 }
 
+/**
+ * The fulfilment queues the admin panel is organised into. Narrowed by the
+ * server, because a page filtered in the browser only ever means "among the
+ * orders that happened to come back".
+ */
+export const ORDER_STAGES = [
+  "PENDING",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "CLOSED",
+  "UNPAID",
+  "ALL",
+] as const;
+
+export type OrderStage = (typeof ORDER_STAGES)[number];
+
 export interface OrdersPage {
   orders: Order[];
+  stage: OrderStage;
   pagination: { page: number; limit: number; total: number; pages: number };
+  /** How many sit in each queue, counted over everything rather than the page. */
+  stageCounts: Record<OrderStage, number>;
   /**
    * Counted over every order, not the page. Anything showing a lifetime figure
    * has to read these: summing `orders` reports whatever happened to be on the
@@ -545,8 +565,16 @@ export interface OrdersPage {
   totals: { count: number; paidRevenue: number };
 }
 
-export async function getOrders(token: string, page = 1): Promise<OrdersPage> {
-  return withToken<OrdersPage>(`/orders?page=${page}`, token, { cache: "no-store" });
+export async function getOrders(
+  token: string,
+  options?: { stage?: OrderStage; page?: number }
+): Promise<OrdersPage> {
+  const query = new URLSearchParams({
+    stage: options?.stage ?? "ALL",
+    page: String(options?.page ?? 1),
+  });
+
+  return withToken<OrdersPage>(`/orders?${query}`, token, { cache: "no-store" });
 }
 
 export async function updateOrderStatus(token: string, id: string, status: string): Promise<{ order: Order }> {

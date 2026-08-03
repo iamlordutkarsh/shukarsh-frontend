@@ -9,9 +9,10 @@ import { ShippingDrawer } from "../../../components/admin/ShippingDrawer";
 import { Button } from "../../../components/ui/Button";
 import { EmptyState } from "../../../components/ui/EmptyState";
 import { EmptyCartArt } from "../../../components/ui/KawaiiArt";
+import { Pager } from "../../../components/ui/Pager";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useToast } from "../../../components/ui/Toast";
-import { getOrders, syncTracking, updateOrderStatus } from "../../../lib/api";
+import { getOrders, syncTracking, updateOrderStatus, type OrderStage, type OrdersPage } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import { Order, Shipment } from "../../../lib/types";
 import { cn, formatPrice } from "../../../lib/utils";
@@ -20,7 +21,15 @@ type AdminOrder = Order & { email?: string | null; user?: { email?: string | nul
 
 const ORDER_STATUSES = ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "RETURNED"] as const;
 
-/** The fulfilment path, in the order the work actually happens. */
+/**
+ * The fulfilment path, in the order the work actually happens.
+ *
+ * Which orders belong in each of these is decided by the server, in
+ * `lib/order-stage.ts`. It used to be decided here, over whatever the endpoint
+ * had returned — fine while that was every order, wrong the moment it became a
+ * page. All that lives here now is what to call each queue and what to say when
+ * it is empty.
+ */
 const TABS = [
   { key: "PENDING", label: "To approve", empty: "Nothing waiting on you." },
   { key: "PROCESSING", label: "Packing", empty: "Nothing to pack." },
@@ -29,27 +38,7 @@ const TABS = [
   { key: "CLOSED", label: "Cancelled", empty: "No cancellations." },
   { key: "UNPAID", label: "Unpaid", empty: "No abandoned checkouts." },
   { key: "ALL", label: "All", empty: "No orders yet." },
-] as const;
-
-type TabKey = (typeof TABS)[number]["key"];
-
-function inTab(order: Order, tab: TabKey) {
-  if (tab === "ALL") return true;
-  if (tab === "CLOSED") return order.status === "CANCELLED" || order.status === "RETURNED";
-
-  // A checkout that was never paid is an abandoned cart, not work for the shop.
-  // It still gets a Pending row, so it needs its own tab or it would sit in the
-  // approval queue forever alongside orders that actually owe someone a parcel.
-  // A cash order is unpaid until it is delivered, but it is real work with a
-  // real parcel, so it belongs in the queues rather than in with the abandoned
-  // checkouts.
-  const settled = order.paymentStatus === "PAID" || order.paymentMethod === "COD";
-  const closed = order.status === "CANCELLED" || order.status === "RETURNED";
-  if (tab === "UNPAID") return !settled && !closed;
-  if (!settled) return false;
-
-  return order.status === tab;
-}
+] as const satisfies readonly { key: OrderStage; label: string; empty: string }[];
 
 const statusClasses: Record<string, string> = {
   PENDING: "bg-peach-100 text-peach-400",
@@ -130,33 +119,49 @@ export default function AdminOrdersPage() {
   const { token } = useAuth();
   const { toast } = useToast();
   const reduced = useReducedMotion();
+  const [result, setResult] = useState<OrdersPage | null>(null);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [shippingId, setShippingId] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("PENDING");
+  const [tab, setTab] = useState<OrderStage>("PENDING");
+  const [page, setPage] = useState(1);
   const [syncing, setSyncing] = useState(false);
 
+  /**
+   * Reruns whenever the queue or the page changes, because both are now the
+   * server's question to answer.
+   *
+   * Only the very first load shows skeletons. Paging through a queue with the
+   * rows blanked out each time makes a fast panel feel broken, so the previous
+   * page stays on screen, dimmed, until the next one lands.
+   */
   useEffect(() => {
     if (!token) return;
     let active = true;
 
-    getOrders(token)
+    getOrders(token, { stage: tab, page })
       .then(async (data) => {
         if (!active) return;
+        // Cleared on the way in rather than before the request, so a queue that
+        // loads does not have to inherit the last one's failure.
+        setError("");
+        setResult(data);
         setOrders(data.orders);
         setLoading(false);
 
         // Opening the panel is the cue to catch up on anything the courier
         // webhook missed. The server keeps a cooldown, so refreshing the page
         // repeatedly costs nothing.
-        const result = await syncTracking(token).catch(() => null);
-        if (!active || !result || result.skipped || !result.advanced) return;
+        const synced = await syncTracking(token).catch(() => null);
+        if (!active || !synced || synced.skipped || !synced.advanced) return;
 
-        const refreshed = await getOrders(token).catch(() => null);
-        if (active && refreshed) setOrders(refreshed.orders);
+        const refreshed = await getOrders(token, { stage: tab, page }).catch(() => null);
+        if (!active || !refreshed) return;
+        setResult(refreshed);
+        setOrders(refreshed.orders);
       })
       .catch((err) => {
         if (!active) return;
@@ -167,13 +172,44 @@ export default function AdminOrdersPage() {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [token, tab, page]);
+
+  /** A different queue starts at its own beginning, not at page four of the last one. */
+  const selectTab = (next: OrderStage) => {
+    if (next === tab) return;
+    setExpanded(null);
+    setPage(1);
+    setTab(next);
+  };
+
+  const selectPage = (next: number) => {
+    setExpanded(null);
+    setPage(next);
+    // The list is about to be replaced wholesale, so put the reader back at the
+    // top of it rather than halfway down rows they have not seen.
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const replaceOrder = (next: Order) =>
     setOrders((current) => current.map((order) => (order.id === next.id ? { ...order, ...next } : order)));
 
   const replaceShipment = (orderId: string, shipment: Shipment) =>
     setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, shipment } : order)));
+
+  /**
+   * Pulls the current queue again, quietly.
+   *
+   * Approving an order moves it out of the queue it was approved from and into
+   * the next one, which the badges have to be told about — they are counted over
+   * every order now, so the panel cannot work them out for itself.
+   */
+  const refresh = async () => {
+    if (!token) return;
+    const data = await getOrders(token, { stage: tab, page }).catch(() => null);
+    if (!data) return;
+    setResult(data);
+    setOrders(data.orders);
+  };
 
   /**
    * Cancelling or reopening a paid order moves real stock, and cancelling one
@@ -218,8 +254,11 @@ export default function AdminOrdersPage() {
 
     try {
       const data = await updateOrderStatus(token, id, status);
+      // In place first so the row answers immediately, then a refetch so the row
+      // leaves the queue it no longer belongs to and the badges agree.
       replaceOrder(data.order);
       toast({ title: "Order updated", description: `Marked as ${status.toLowerCase()}.`, tone: "success" });
+      void refresh();
     } catch (err) {
       toast({
         title: "Could not update this order",
@@ -236,11 +275,11 @@ export default function AdminOrdersPage() {
     setSyncing(true);
 
     try {
-      const result = await syncTracking(token);
+      const synced = await syncTracking(token);
 
       // A skipped call did no work, so there is nothing new to fetch. Checking
       // this first stops the panel refetching and then saying it did not.
-      if (result.skipped) {
+      if (synced.skipped) {
         toast({
           title: "Already up to date",
           description: "The couriers were checked a moment ago. Try again in a few minutes.",
@@ -249,20 +288,17 @@ export default function AdminOrdersPage() {
         return;
       }
 
-      if (result.advanced > 0) {
-        const refreshed = await getOrders(token);
-        setOrders(refreshed.orders);
-      }
+      if (synced.advanced > 0) await refresh();
 
       toast({
         title:
-          result.checked === 0
+          synced.checked === 0
             ? "Nothing in transit"
-            : `${result.advanced} order${result.advanced === 1 ? "" : "s"} moved on`,
+            : `${synced.advanced} order${synced.advanced === 1 ? "" : "s"} moved on`,
         description:
-          result.checked === 0
+          synced.checked === 0
             ? "No shipments are waiting on a courier update."
-            : `Checked ${result.checked} shipment${result.checked === 1 ? "" : "s"} with the courier.`,
+            : `Checked ${synced.checked} shipment${synced.checked === 1 ? "" : "s"} with the courier.`,
         tone: "success",
       });
     } catch (err) {
@@ -276,20 +312,19 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const paidTotal = orders
-    .filter((order) => order.paymentStatus === "PAID")
-    .reduce((total, order) => total + Number(order.totalAmount), 0);
-
   const shippingOrder = orders.find((order) => order.id === shippingId) ?? null;
-  const visible = orders.filter((order) => inTab(order, tab));
   const activeTab = TABS.find((entry) => entry.key === tab)!;
+
+  // Counted by the database over every order, so these hold whatever page is up.
+  const paidTotal = result?.totals.paidRevenue ?? 0;
+  const shopIsEmpty = result !== null && result.totals.count === 0;
 
   return (
     <AdminLayout
       title="Orders"
       subtitle="Every order, newest first. Open one to see exactly what was packed."
       actions={
-        !loading && orders.length > 0 ? (
+        !loading && !shopIsEmpty ? (
           <div className="flex items-center gap-3">
             <Button variant="secondary" size="sm" onClick={handleSync} loading={syncing}>
               <RefreshCw className="h-4 w-4" strokeWidth={2.4} />
@@ -307,10 +342,10 @@ export default function AdminOrdersPage() {
     >
       {error && <p className="mb-5 rounded-3xl bg-rose-50 px-4 py-3 text-sm text-rose-500">{error}</p>}
 
-      {!loading && orders.length > 0 && (
+      {!loading && !shopIsEmpty && (
         <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Order stage">
           {TABS.map((entry) => {
-            const count = orders.filter((order) => inTab(order, entry.key)).length;
+            const count = result?.stageCounts[entry.key] ?? 0;
             const active = entry.key === tab;
 
             return (
@@ -319,7 +354,7 @@ export default function AdminOrdersPage() {
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setTab(entry.key)}
+                onClick={() => selectTab(entry.key)}
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors",
                   active
@@ -348,17 +383,17 @@ export default function AdminOrdersPage() {
             <Skeleton key={index} className="h-24 w-full rounded-4xl" />
           ))}
         </div>
-      ) : orders.length === 0 ? (
+      ) : shopIsEmpty ? (
         <EmptyState
           art={<EmptyCartArt />}
           title="No orders yet"
           description="Once someone checks out, their order lands here instantly."
         />
-      ) : visible.length === 0 ? (
+      ) : orders.length === 0 ? (
         <EmptyState compact art={<EmptyCartArt />} title={activeTab.empty} description="" />
       ) : (
         <ul className="space-y-3">
-          {visible.map((order) => {
+          {orders.map((order) => {
             const open = expanded === order.id;
             const customer = customerOf(order);
             const shipping = shippingLineOf(order);
@@ -625,6 +660,18 @@ export default function AdminOrdersPage() {
             );
           })}
         </ul>
+      )}
+
+      {result && !loading && (
+        <Pager
+          page={result.pagination.page}
+          pages={result.pagination.pages}
+          total={result.pagination.total}
+          limit={result.pagination.limit}
+          showing={orders.length}
+          noun="order"
+          onPage={selectPage}
+        />
       )}
 
       {/* Keyed so tracking and pickup state never leak between orders. */}
