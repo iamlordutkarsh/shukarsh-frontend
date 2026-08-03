@@ -534,8 +534,19 @@ export async function deleteCategory(token: string, id: string): Promise<void> {
   });
 }
 
-export async function getOrders(token: string): Promise<{ orders: Order[] }> {
-  return withToken<{ orders: Order[] }>("/orders", token, { cache: "no-store" });
+export interface OrdersPage {
+  orders: Order[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+  /**
+   * Counted over every order, not the page. Anything showing a lifetime figure
+   * has to read these: summing `orders` reports whatever happened to be on the
+   * first page and looks entirely plausible while doing it.
+   */
+  totals: { count: number; paidRevenue: number };
+}
+
+export async function getOrders(token: string, page = 1): Promise<OrdersPage> {
+  return withToken<OrdersPage>(`/orders?page=${page}`, token, { cache: "no-store" });
 }
 
 export async function updateOrderStatus(token: string, id: string, status: string): Promise<{ order: Order }> {

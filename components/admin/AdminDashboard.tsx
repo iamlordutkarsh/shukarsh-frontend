@@ -33,6 +33,15 @@ export function AdminDashboard({ productTotal, categoryTotal, lowStock }: AdminD
   const { token } = useAuth();
   const reduced = useReducedMotion();
   const [orders, setOrders] = useState<Order[]>([]);
+  /**
+   * The shop's lifetime figures, counted by the database.
+   *
+   * These used to be worked out by summing the orders array, which was right
+   * only for as long as that array was every order there had ever been. It is a
+   * page now, so the sum would quietly become "revenue from the most recent
+   * hundred" — a number that goes down as the shop does better.
+   */
+  const [totals, setTotals] = useState<{ count: number; paidRevenue: number } | null>(null);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersFailed, setOrdersFailed] = useState(false);
 
@@ -42,7 +51,9 @@ export function AdminDashboard({ productTotal, categoryTotal, lowStock }: AdminD
 
     getOrders(token)
       .then((data) => {
-        if (active) setOrders(data.orders);
+        if (!active) return;
+        setOrders(data.orders);
+        setTotals(data.totals);
       })
       .catch(() => {
         if (active) setOrdersFailed(true);
@@ -56,12 +67,8 @@ export function AdminDashboard({ productTotal, categoryTotal, lowStock }: AdminD
     };
   }, [token]);
 
-  const paidRevenue = orders
-    .filter((order) => order.paymentStatus === "PAID")
-    .reduce((total, order) => total + Number(order.totalAmount), 0);
-
-  const ordersValue = ordersFailed ? "--" : String(orders.length);
-  const revenueValue = ordersFailed ? "--" : formatPrice(paidRevenue);
+  const ordersValue = ordersFailed || !totals ? "--" : String(totals.count);
+  const revenueValue = ordersFailed || !totals ? "--" : formatPrice(totals.paidRevenue);
 
   const stats = [
     {
